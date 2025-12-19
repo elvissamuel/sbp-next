@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { updateEnrollmentProgress } from "@/lib/progress-calculator"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -9,10 +10,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Fetch quiz with questions
+    // Fetch quiz with questions and course info
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { questions: true },
+      include: {
+        questions: true,
+        course: true,
+      },
     })
 
     if (!quiz) {
@@ -46,11 +50,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Update course progress (includes quiz performance)
+    const progressData = await updateEnrollmentProgress(userId, quiz.courseId)
+
     return NextResponse.json({
       attempt,
       passed,
       score,
       totalPoints: quiz.totalPoints,
+      progress: progressData.progress,
+      quizProgress: progressData.quizProgress,
     })
   } catch (error) {
     console.error("Error submitting quiz:", error)

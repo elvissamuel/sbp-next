@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { updateEnrollmentProgress } from "@/lib/progress-calculator"
 import { type NextRequest, NextResponse } from "next/server"
 
 // Mark a lesson as complete and update enrollment progress
@@ -60,7 +61,6 @@ export async function POST(
       })
     }
 
-    // Calculate new progress
     const totalLessons = lesson.course.lessons.length
     if (totalLessons === 0) {
       return NextResponse.json({ error: "Course has no lessons" }, { status: 400 })
@@ -72,43 +72,57 @@ export async function POST(
       return NextResponse.json({ error: "Lesson not found in course" }, { status: 404 })
     }
 
-    // Calculate progress: (completed lessons / total lessons) * 100
-    // We consider a lesson complete if it's at or before the current lesson index
-    // For now, we'll increment progress based on completing this lesson
-    const currentProgress = enrollment.progress
-    const completedLessons = Math.round((currentProgress / 100) * totalLessons)
+    // Check if this lesson should update progress
+    // Calculate current completed lessons based on lesson index progression
+    // When lesson at index N is completed, all lessons 0..N are considered completed
+    const currentCompletedLessons = Math.round((enrollment.progress / 100) * totalLessons)
     
-    // If this lesson hasn't been completed yet, increment
-    if (lessonIndex >= completedLessons) {
+    // If this lesson hasn't been completed yet, update progress
+    if (lessonIndex >= currentCompletedLessons) {
+      // First, update lesson-only progress to track lesson completion
+      // This ensures we can calculate lesson progress separately from quiz progress
       const newCompletedLessons = lessonIndex + 1
-      const newProgress = Math.round((newCompletedLessons / totalLessons) * 100)
-
-      // Update enrollment progress
-      const updatedEnrollment = await prisma.enrollment.update({
+      const lessonOnlyProgress = Math.round((newCompletedLessons / totalLessons) * 100)
+      
+      // Temporarily set enrollment.progress to lesson-only progress
+      // Then updateEnrollmentProgress will combine with quiz scores
+      await prisma.enrollment.update({
         where: { id: enrollment.id },
         data: {
-          progress: Math.min(newProgress, 100),
-          status: newProgress === 100 ? "completed" : enrollment.status,
-          completedAt: newProgress === 100 ? new Date() : enrollment.completedAt,
+          progress: lessonOnlyProgress, // Set to lesson-only first
         },
       })
+      
+      // Now update progress using the progress calculator (includes quiz performance)
+      // This will recalculate and store the combined progress
+      const progressData = await updateEnrollmentProgress(userId, lesson.courseId)
 
       return NextResponse.json({
         success: true,
-        enrollment: updatedEnrollment,
-        progress: updatedEnrollment.progress,
-        completedLessons: newCompletedLessons,
-        totalLessons,
+        enrollment: {
+          ...enrollment,
+          progress: progressData.progress,
+        },
+        progress: progressData.progress,
+        completedLessons: progressData.completedLessons,
+        totalLessons: progressData.totalLessons,
+        quizProgress: progressData.quizProgress,
       })
     }
 
-    // Lesson already completed
+    // Lesson already completed, just return current progress
+    const progressData = await updateEnrollmentProgress(userId, lesson.courseId)
+    
     return NextResponse.json({
       success: true,
-      enrollment,
-      progress: enrollment.progress,
-      completedLessons: Math.round((enrollment.progress / 100) * totalLessons),
-      totalLessons,
+      enrollment: {
+        ...enrollment,
+        progress: progressData.progress,
+      },
+      progress: progressData.progress,
+      completedLessons: progressData.completedLessons,
+      totalLessons: progressData.totalLessons,
+      quizProgress: progressData.quizProgress,
       message: "Lesson already completed",
     })
   } catch (error) {

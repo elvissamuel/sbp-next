@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getLesson, updateLesson, deleteLesson } from "@/lib/api-calls"
+import { MarkdownEditor } from "@/components/markdown-editor"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import {
@@ -185,17 +186,14 @@ export default function EditLessonPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                <Textarea
-                  id="content"
-                  name="content"
+                <MarkdownEditor
                   value={formData.content}
-                  onChange={handleChange}
-                  rows={12}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, content: value }))}
                   placeholder="Enter lesson content... (Markdown supported)"
+                  rows={15}
                   disabled={updateLessonMutation.isPending}
-                  required
                 />
-                <p className="text-xs text-muted-foreground">Supports Markdown formatting</p>
+                <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
               </div>
 
               <div className="flex gap-3">

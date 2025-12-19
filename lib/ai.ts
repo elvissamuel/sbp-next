@@ -22,19 +22,38 @@ export async function generateLessonContent(
   referenceContent?: string[]
 ): Promise<string> {
   try {
-    let prompt = `Create educational lesson content for a ${courseLevel} level course on "${topic}". 
-      The content should be well-structured, engaging, and suitable for online learning.
-      Include learning objectives, key concepts, and practical examples.
-      Format the response in markdown.`
+    let prompt = `You are an expert educational content creator. Create comprehensive lesson content for the following topic:\n\n`
+
+    prompt += `Lesson Title: ${topic}\n\n`
 
     // Add reference content if provided
     if (referenceContent && referenceContent.length > 0) {
-      prompt += `\n\nUse the following reference materials to inform and enhance the lesson content:\n\n`
+      prompt += `Use the following context to create relevant, engaging, and educational content:\n\n`
       referenceContent.forEach((content, index) => {
         prompt += `Reference ${index + 1}:\n${content}\n\n`
       })
-      prompt += `Please incorporate relevant information from these references while creating the lesson content.`
     }
+
+    prompt += `This is a ${courseLevel} level course.\n\n`
+
+    prompt += `Requirements:\n`
+    prompt += `- Create structured, easy-to-follow content in Markdown format\n`
+    prompt += `- Use proper Markdown syntax: #, ##, ### for headings, **bold**, *italic*, \`code\`, \`\`\`code blocks\`\`\`\n`
+    prompt += `- For unordered lists, use a single hyphen (-) followed by a space, NOT asterisks (*). Example: "- Item 1" not "* Item 1"\n`
+    prompt += `- For ordered lists, use numbers followed by a period and space: "1. Item 1"\n`
+    prompt += `- Do NOT mix asterisks with hyphens in list formatting. Use only hyphens (-) for bullet points\n`
+    prompt += `- When using bold text within list items, format as: "- **Term:** Definition" not "* **Term:** Definition"\n`
+    prompt += `- Include practical examples where relevant\n`
+    prompt += `- Use clear, engaging language\n`
+    prompt += `- Ensure content is appropriate for the educational context\n`
+    prompt += `- Structure content with headings and paragraphs\n`
+    prompt += `- Use bullet points or numbered lists for key concepts\n`
+    prompt += `- Add emphasis with **bold** and *italic* where appropriate\n`
+    prompt += `- Use moderate spacing between sections - avoid excessive line breaks\n`
+    prompt += `- Keep paragraphs concise and well-structured\n`
+    prompt += `- Include learning objectives, key concepts, and practical examples\n`
+
+    prompt += `\nGenerate the lesson content in Markdown format now. Start with a main heading and structure the content properly:`
 
     const { text } = await generateText({
       model: geminiModel,
@@ -59,15 +78,18 @@ export async function generateQuizQuestions(
     type: string
   }>
 > {
+  let rawText = ""
   try {
-    const { text } = await generateText({
+    const result = await generateText({
       model: geminiModel,
       prompt: `Based on the following lesson content, generate ${numQuestions} multiple choice quiz questions.
       
 Lesson Content:
 ${lessonContent}
 
-Return the response as a valid JSON array with this structure:
+IMPORTANT: Return ONLY a valid JSON array. Do NOT include any markdown code blocks, backticks, or any other text before or after the JSON.
+
+Return a valid JSON array with this exact structure:
 [
   {
     "question": "question text",
@@ -77,12 +99,29 @@ Return the response as a valid JSON array with this structure:
   }
 ]
 
-Return ONLY the JSON array, no other text.`,
+Return ONLY the JSON array - no markdown, no code blocks, no explanations, no backticks.`,
     })
 
-    return JSON.parse(text)
+    rawText = result.text
+
+    // Clean the text to remove markdown code blocks if present
+    let cleanedText = rawText.trim()
+    
+    // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+    cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, '')
+    cleanedText = cleanedText.replace(/\s*```$/i, '')
+    cleanedText = cleanedText.trim()
+    
+    // Try to extract JSON array if there's any extra text
+    const jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
+    if (jsonMatch) {
+      cleanedText = jsonMatch[0]
+    }
+
+    return JSON.parse(cleanedText)
   } catch (error) {
     console.error("Error generating quiz questions:", error)
+    console.error("Raw AI response:", rawText)
     throw error
   }
 }

@@ -19,6 +19,7 @@ import { createLesson, getCourseResources, generateLessonContent, type CourseRes
 import { CreateLessonSchema } from "@/lib/validation-schema"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { MarkdownEditor } from "@/components/markdown-editor"
 
 type FormValues = z.infer<typeof CreateLessonSchema>
 
@@ -282,21 +283,21 @@ export default function CreateLessonPage() {
                     </Button>
                   )}
                 </div>
-                <Textarea
-                  id="content"
-                  {...form.register("content")}
+                <MarkdownEditor
+                  value={form.watch("content") || ""}
+                  onChange={(value) => form.setValue("content", value)}
                   placeholder={
                     contentMode === "ai"
                       ? "Click 'Generate Content' to create lesson content using AI"
                       : "Enter lesson content... (Markdown supported)"
                   }
-                  rows={12}
+                  rows={15}
                   disabled={createLessonMutation.isPending || (contentMode === "ai" && isGenerating)}
                 />
                 {form.formState.errors.content && (
                   <p className="text-sm text-destructive">{form.formState.errors.content.message}</p>
                 )}
-                <p className="text-xs text-muted-foreground">Supports Markdown formatting</p>
+                <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
               </div>
 
               {/* Error Display */}

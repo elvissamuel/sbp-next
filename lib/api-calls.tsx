@@ -189,6 +189,23 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  export const getQuiz = async (quizId: string): Promise<IApiResponse<Quiz & { course: { id: string; title: string; slug: string } }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/${quizId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const submitQuiz = async (userId: string, quizId: string, answers: Record<string, string>): Promise<IApiResponse<{ attempt: any; passed: boolean; score: number; totalPoints: number }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, quizId, answers }),
+    }));
+  };
+
   export type EnrollmentWithUser = {
     id: string;
     userId: string;

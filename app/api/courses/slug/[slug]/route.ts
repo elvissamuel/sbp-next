@@ -80,10 +80,25 @@ export async function GET(
       })
     }
 
-    // Calculate progress
-    const progress = enrollment?.progress || 0
+    // Calculate progress (includes quiz performance if enrollment exists)
+    let progress = 0
+    let completedLessons = 0
+    let quizProgress = 0
+    
+    if (enrollment && userId) {
+      // Use the progress calculator to get accurate progress including quizzes
+      const { calculateCourseProgress } = await import("@/lib/progress-calculator")
+      const progressData = await calculateCourseProgress(userId, course.id)
+      progress = progressData.progress
+      completedLessons = progressData.completedLessons
+      quizProgress = progressData.quizProgress
+    } else {
+      // No enrollment, use default values
+      const totalLessons = course.lessons.length
+      completedLessons = 0
+    }
+
     const totalLessons = course.lessons.length
-    const completedLessons = totalLessons > 0 ? Math.round((progress / 100) * totalLessons) : 0
 
     return NextResponse.json({
       ...course,
@@ -91,7 +106,7 @@ export async function GET(
         ? {
             id: enrollment.id,
             status: enrollment.status,
-            progress: enrollment.progress,
+            progress: progress,
             completedAt: enrollment.completedAt,
           }
         : null,
@@ -99,6 +114,7 @@ export async function GET(
         totalLessons,
         completedLessons,
         progress,
+        quizProgress,
       },
     })
   } catch (error) {

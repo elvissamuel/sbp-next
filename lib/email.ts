@@ -19,14 +19,26 @@ export interface VerificationEmailData {
  * Send an invitation email to a new team member
  */
 export async function sendInviteEmail(data: InviteEmailData): Promise<void> {
-  try {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn("RESEND_API_KEY not set. Email will not be sent.")
-      return
-    }
+  // Check if API key is set
+  if (!process.env.RESEND_API_KEY) {
+    const error = "RESEND_API_KEY not set. Email cannot be sent."
+    console.error(`[EMAIL ERROR] ${error}`)
+    console.error(`[EMAIL ERROR] Email configuration check failed`)
+    return
+  }
 
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+  try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev"
+    console.log(`[EMAIL] Attempting to send invitation email to ${data.email}`)
+    console.log(`[EMAIL] From: ${fromEmail}`)
+    console.log(`[EMAIL] To: ${data.email}`)
+    console.log(`[EMAIL] Organization: ${data.organizationName}`)
+    console.log(`[EMAIL] Invite link: ${data.inviteLink}`)
+    console.log(`[EMAIL] RESEND_API_KEY exists: ${!!process.env.RESEND_API_KEY}`)
+    console.log(`[EMAIL] RESEND_API_KEY length: ${process.env.RESEND_API_KEY?.length || 0}`)
+
+    const emailPayload = {
+      from: fromEmail,
       to: data.email,
       subject: `You've been invited to join ${data.organizationName}`,
       html: `
@@ -71,11 +83,39 @@ ${data.inviteLink}
 
 If you didn't expect this invitation, you can safely ignore this email.
       `.trim(),
-    })
+    }
 
-    console.log(`Invitation email sent to ${data.email}`)
-  } catch (error) {
-    console.error("Error sending invitation email:", error)
+    console.log(`[EMAIL] Sending email via Resend API...`)
+    const response = await resend.emails.send(emailPayload)
+
+    if (response.error) {
+      const errorMessage = `Resend API returned an error: ${JSON.stringify(response.error, null, 2)}`
+      console.error(`[EMAIL ERROR] ${errorMessage}`)
+      console.error(`[EMAIL ERROR] Error type: ${typeof response.error}`)
+      console.error(`[EMAIL ERROR] Error details:`, response.error)
+      if (response.error instanceof Error) {
+        console.error(`[EMAIL ERROR] Error message: ${response.error.message}`)
+        console.error(`[EMAIL ERROR] Error stack: ${response.error.stack}`)
+      }
+      // Don't throw - email sending failure shouldn't break the invite flow
+      return
+    }
+
+    console.log(`[EMAIL SUCCESS] Invitation email sent to ${data.email}`)
+    console.log(`[EMAIL] Email ID: ${response.data?.id || "N/A"}`)
+    console.log(`[EMAIL] Full response:`, JSON.stringify(response.data, null, 2))
+  } catch (error: any) {
+    console.error(`[EMAIL ERROR] Exception caught while sending invitation email to ${data.email}:`)
+    console.error(`[EMAIL ERROR] Error type: ${error?.constructor?.name || typeof error}`)
+    console.error(`[EMAIL ERROR] Error message: ${error?.message || "Unknown error"}`)
+    console.error(`[EMAIL ERROR] Error stack:`, error?.stack)
+    console.error(`[EMAIL ERROR] Full error object:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+    if (error?.response) {
+      console.error(`[EMAIL ERROR] Error response:`, JSON.stringify(error.response, null, 2))
+    }
+    if (error?.request) {
+      console.error(`[EMAIL ERROR] Error request:`, JSON.stringify(error.request, null, 2))
+    }
     // Don't throw - email sending failure shouldn't break the invite flow
     // In production, you might want to log this to an error tracking service
   }
