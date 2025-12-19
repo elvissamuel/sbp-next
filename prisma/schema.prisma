@@ -1,0 +1,334 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// Organizations - Multi-tenant support
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members   OrganizationMember[]
+  courses   Course[]
+  subscriptions Subscription[]
+  apiKeys   ApiKey[]
+  groups    Group[]
+
+  @@index([slug])
+}
+
+// Organization Members - Role-based access
+model OrganizationMember {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            String   @default("member") // admin, instructor, member
+  joinedAt        DateTime @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// Users
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  password      String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  organizations OrganizationMember[]
+  enrollments   Enrollment[]
+  quizAttempts  QuizAttempt[]
+  payments      Payment[]
+  groupMembers  GroupMember[]
+  emailVerification EmailVerification?
+
+  @@index([email])
+}
+
+// Email Verification
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Courses
+model Course {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title           String
+  description     String   @db.Text
+  slug            String   @unique
+  thumbnail       String?
+  price           Float    @default(0)
+  currency        String   @default("NGN")
+  status          String   @default("draft") // draft, published, archived
+  level           String   @default("beginner") // beginner, intermediate, advanced
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  lessons         Lesson[]
+  quizzes         Quiz[]
+  enrollments     Enrollment[]
+  resources       CourseResource[]
+
+  @@index([organizationId])
+  @@index([slug])
+}
+
+// Lessons
+model Lesson {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  content     String   @db.Text
+  videoUrl    String?
+  order       Int      @default(0)
+  duration    Int?     // in minutes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  resources   LessonResource[]
+
+  @@index([courseId])
+}
+
+// Lesson Resources (PDFs, docs, etc)
+model LessonResource {
+  id        String   @id @default(cuid())
+  lessonId  String
+  lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title     String
+  type      String   // pdf, document, image, code
+  url       String
+  createdAt DateTime @default(now())
+
+  @@index([lessonId])
+}
+
+// Course Resources
+model CourseResource {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  type      String   // pdf, document, text
+  url       String?  // Optional - only for file uploads
+  content   String?  @db.Text // Optional - for text/pasted content
+  createdAt DateTime @default(now())
+
+  @@index([courseId])
+}
+
+// Enrollments
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status    String   @default("active") // active, completed, paused
+  progress  Int      @default(0) // percentage
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+// Quizzes
+model Quiz {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  passingScore Float   @default(70)
+  totalPoints Float   @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  questions   QuizQuestion[]
+  attempts    QuizAttempt[]
+
+  @@index([courseId])
+}
+
+// Quiz Questions
+model QuizQuestion {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question    String   @db.Text
+  type        String   @default("multiple_choice") // multiple_choice, true_false, short_answer
+  options     String   @db.Text // JSON array
+  correctAnswer String @db.Text
+  points      Float    @default(1)
+  order       Int      @default(0)
+
+  @@index([quizId])
+}
+
+// Quiz Attempts
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId    String
+  quiz      Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers   String   @db.Text // JSON object with question_id: answer
+  score     Float
+  passed    Boolean
+  attemptedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([quizId])
+}
+
+// Embeddings for vector search (AI) - Using pgvector
+// Note: The embedding column uses pgvector's vector type (768 dimensions)
+// This is handled via raw SQL since Prisma doesn't natively support vector type
+model Embedding {
+  id            String   @id @default(cuid())
+  entityType    String   // "lesson", "resource"
+  entityId      String   // lessonId or resourceId
+  content       String   @db.Text
+  metadata      Json?    // Additional metadata stored as JSON
+  createdAt     DateTime @default(now())
+
+  @@unique([entityType, entityId])
+  @@index([entityType, entityId])
+  @@map("Embeddings")
+}
+
+// Subscriptions
+model Subscription {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan            String   @default("free") // free, starter, pro, enterprise
+  status          String   @default("active") // active, canceled, expired
+  stripeId        String?  // Paystack reference
+  paystackRef     String?  // Paystack reference
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  canceledAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+// Payments (Paystack)
+model Payment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Float
+  currency    String   @default("NGN")
+  paystackRef String   @unique
+  status      String   // pending, success, failed
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([paystackRef])
+}
+
+// Content Generation Log (AI usage tracking)
+model ContentGeneration {
+  id            String   @id @default(cuid())
+  organizationId String
+  courseId      String?
+  lessonId      String?
+  type          String   // lesson_content, quiz, etc
+  prompt        String   @db.Text
+  output        String   @db.Text
+  tokensUsed    Int?
+  createdAt     DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([createdAt])
+}
+
+// API Keys for organization integrations
+model ApiKey {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  key           String   @unique
+  name          String
+  permissions   String   @db.Text // JSON array of permissions
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([key])
+}
+
+// Groups - Organize organization members into learning groups
+model Group {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  members        GroupMember[]
+
+  @@index([organizationId])
+}
+
+// Group Members - Members belonging to a group
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
