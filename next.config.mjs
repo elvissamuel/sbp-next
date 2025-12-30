@@ -7,7 +7,7 @@ const nextConfig = {
     unoptimized: true,
   },
   // External packages for server-side execution
-  serverExternalPackages: ['pdfjs-dist'],
+  serverExternalPackages: ['pdf-parse'],
 }
 
 export default nextConfig
