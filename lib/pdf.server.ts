@@ -14,7 +14,7 @@ export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> 
   try {
     // pdf-parse v1.1.1 exports a default function (not a class)
     // Use require() directly in Node.js runtime
-    const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>
+    const pdfParse = require("pdf-parse") as (buffer: Buffer, options?: any) => Promise<{ text: string }>
     
     // Verify it's a function
     if (typeof pdfParse !== "function") {
@@ -25,7 +25,46 @@ export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> 
     }
 
     // Parse the PDF buffer
-    const pdfData = await pdfParse(buffer)
+    // pdf-parse v1.1.1 should work directly with a buffer in Node.js
+    // Wrap in try-catch to handle any internal JSON parsing errors
+    let pdfData: { text: string }
+    try {
+      pdfData = await pdfParse(buffer)
+    } catch (parseError: any) {
+      // Handle JSON parsing errors that might occur internally in pdf-parse
+      // This can happen in serverless environments when pdf-parse tries to
+      // download worker files or make network requests that fail
+      const errorMsg = parseError?.message || String(parseError) || 'Unknown error'
+      const errorStack = parseError?.stack || ''
+      const errorName = parseError?.name || 'Unknown'
+      
+      console.error("PDF parsing error details:", {
+        name: errorName,
+        message: errorMsg,
+        stack: errorStack,
+        type: typeof parseError,
+        constructor: parseError?.constructor?.name,
+      })
+      
+      // Check if it's a JSON parsing error (common in serverless environments)
+      if (
+        parseError instanceof SyntaxError ||
+        errorName === 'SyntaxError' ||
+        errorMsg.includes('JSON') ||
+        errorMsg.includes('Unexpected token') ||
+        errorMsg.includes('is not valid JSON') ||
+        errorMsg.includes('Request En') // Common pattern: "Request Error" being parsed as JSON
+      ) {
+        throw new Error(
+          `Failed to parse PDF in serverless environment: The PDF parser encountered a network or configuration issue. ` +
+          `This often occurs when pdf-parse tries to download worker files in serverless functions like Vercel. ` +
+          `Original error: ${errorMsg}`
+        )
+      }
+      
+      // Re-throw other errors with better context
+      throw parseError
+    }
 
     // Extract text from the PDF
     const text = pdfData.text
