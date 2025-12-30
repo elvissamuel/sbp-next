@@ -3,61 +3,25 @@ import { indexResourceContent } from "@/lib/pgvector"
 import { CreateResourceSchema } from "@/lib/validation-schema"
 import { type NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
+import "server-only"
+import { extractTextFromPdfBuffer } from "@/lib/pdf.server"
 
-// Helper function to extract text from PDF using pdfjs-dist
+export const runtime = "nodejs"
+
+/**
+ * Helper function to extract text from uploaded files
+ * Converts File objects to Buffer for server-side processing
+ */
 async function extractTextFromFile(file: File): Promise<string> {
   const fileType = file.type
 
   if (fileType === "application/pdf") {
-    try {
-      // Use pdfjs-dist legacy build for Node.js server-side environment
-      // Dynamic import to avoid bundling issues
-      const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
-      
-      const arrayBuffer = await file.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      
-      // Load the PDF document
-      const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
-      const pdfDocument = await loadingTask.promise
-      
-      let fullText = ""
-      
-      // Extract text from each page
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        const page = await pdfDocument.getPage(pageNum)
-        const textContent = await page.getTextContent()
-        
-        // Combine text items from the page
-        const pageText = textContent.items
-          .map((item: any) => {
-            // Text items have a 'str' property
-            if ('str' in item) {
-              return item.str
-            }
-            return ''
-          })
-          .join(' ')
-        
-        fullText += pageText + '\n'
-      }
-      
-      if (!fullText || fullText.trim().length === 0) {
-        throw new Error("PDF appears to be empty or contains no extractable text")
-      }
-      
-      return fullText.trim()
-    } catch (error) {
-      console.error("Error parsing PDF:", error)
-      if (error instanceof Error && error.message.includes("Cannot find module")) {
-        throw new Error(
-          "PDF parsing library not installed. Please run: npm install pdfjs-dist"
-        )
-      }
-      throw new Error(
-        `Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
-    }
+    // Convert File to Buffer for pdf-parse
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    
+    // Use server-only PDF extraction helper
+    return await extractTextFromPdfBuffer(buffer)
   } else if (
     fileType === "text/plain" ||
     fileType === "text/markdown" ||

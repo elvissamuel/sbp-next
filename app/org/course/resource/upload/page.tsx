@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import { CreateResourceSchema } from "@/lib/validation-schema"
 import { getPrimaryOrganization } from "@/lib/session"
@@ -39,6 +39,7 @@ type FormValues = z.infer<typeof CreateResourceSchema>
 
 export default function UploadResourcePage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [inputType, setInputType] = useState<"file" | "text">("text")
   const [file, setFile] = useState<File | null>(null)
 
@@ -52,7 +53,9 @@ export default function UploadResourcePage() {
       if (!organizationId) return []
       const response = await fetch(`/api/courses?organizationId=${organizationId}`)
       if (!response.ok) throw new Error("Failed to fetch courses")
-      return response.json()
+      const data = await response.json()
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : []
     },
     enabled: !!organizationId,
   })
@@ -93,6 +96,11 @@ export default function UploadResourcePage() {
       return response.json()
     },
     onSuccess: () => {
+      // Invalidate courses query to mark it as stale
+      queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
+      // Also invalidate resources query in case it's used elsewhere
+      queryClient.invalidateQueries({ queryKey: ["resources"] })
+      // Navigate to courses page - the useEffect on the courses page will refetch on mount
       router.push("/org/course")
     },
     onError: (error: Error) => {
@@ -168,11 +176,17 @@ export default function UploadResourcePage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {courses?.map((course: any) => (
-                            <SelectItem key={course.id} value={course.id}>
-                              {course.title}
+                          {Array.isArray(courses) && courses.length > 0 ? (
+                            courses.map((course: any) => (
+                              <SelectItem key={course.id} value={course.id}>
+                                {course.title}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-courses" disabled>
+                              No courses available
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <FormDescription>Select the course this resource is for</FormDescription>

@@ -155,8 +155,8 @@ function HomeContent() {
   return (
     <MainLayout>
       {/* Hero Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
+      <section className="py-20 px-4 h-[90vh]">
+        <div className="max-w-4xl mx-auto text-center space-y-6 pt-10">
           <h1 className="text-5xl font-bold tracking-tight text-foreground">Learn Smarter with WokBook</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             The modern platform for creating, sharing, and mastering courses. Powered by AI-generated content and

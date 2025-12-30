@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent } from "@/components/ui/card"
@@ -38,11 +38,21 @@ export default function CourseManagementPage() {
   const [enrollError, setEnrollError] = useState<string | null>(null)
 
   // Fetch courses for the organization
-  const { data: coursesResponse, isLoading, error } = useQuery({
+  const { data: coursesResponse, isLoading, error, refetch } = useQuery({
     queryKey: ["courses", organizationId],
     queryFn: () => getCourses(organizationId),
     enabled: !!organizationId,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 0, // Always consider data stale so it refetches when needed
   })
+
+  // Refetch courses when component mounts to ensure fresh data after navigation
+  useEffect(() => {
+    if (organizationId) {
+      refetch()
+    }
+  }, [organizationId, refetch])
 
   // Fetch organization members for enrollment
   const { data: membersResponse, isLoading: membersLoading } = useQuery({
