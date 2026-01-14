@@ -93,6 +93,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
   export type CourseWithRelations = Course & {
     enrollments?: Array<{ id: string }>;
     lessons?: unknown[];
+    quizzes?: Array<{ id: string; title: string; questions?: unknown[] }>;
   };
 
   export const getCourses = async (organizationId: string, published?: boolean): Promise<IApiResponse<CourseWithRelations[]>> => {
@@ -153,6 +154,30 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ courseId, topic, resourceIds }),
+    }));
+  };
+
+  // Extract text content from PDF file
+  export const extractPdfContent = async (file: File): Promise<IApiResponse<{ content: string; fileName: string; fileSize: number }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    return handleApiCalls(await fetch(`${baseUrl}/api/lessons/extract-pdf`, {
+      method: "POST",
+      body: formData,
+    }));
+  };
+
+  // Upload video file to Vercel Blob storage
+  export const uploadVideo = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    return handleApiCalls(await fetch(`${baseUrl}/api/lessons/upload-video`, {
+      method: "POST",
+      body: formData,
     }));
   };
 
@@ -283,6 +308,25 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     return handleApiCalls(await fetch(`${baseUrl}/api/courses/${courseId}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  // Get default courses from system organization
+  export const getDefaultCourses = async (): Promise<IApiResponse<CourseWithRelations[]>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/default`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  // Copy a course from system organization to an organization
+  export const copyCourse = async (courseId: string, organizationId: string): Promise<IApiResponse<CourseWithRelations>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/${courseId}/copy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId }),
     }));
   };
 

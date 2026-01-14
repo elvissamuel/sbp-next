@@ -19,11 +19,15 @@ export const geminiModel = google("gemini-2.0-flash")
 export async function generateLessonContent(
   topic: string, 
   courseLevel: string, 
-  referenceContent?: string[]
+  referenceContent?: string[],
+  courseTitle?: string
 ): Promise<string> {
   try {
     let prompt = `You are an expert educational content creator. Create comprehensive lesson content for the following topic:\n\n`
 
+    if (courseTitle) {
+      prompt += `Course Title: ${courseTitle}\n`
+    }
     prompt += `Lesson Title: ${topic}\n\n`
 
     // Add reference content if provided

@@ -1,72 +1,84 @@
 "use client"
 
+import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useState } from "react"
-import { Search } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { BookOpen, PlayCircle, CheckCircle2, Loader2 } from "lucide-react"
+import { getUserEnrollments, type EnrollmentWithCourse } from "@/lib/api-calls"
+import { getCurrentUser } from "@/lib/session"
 
 export default function CourseListPage() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const currentUser = getCurrentUser()
+  const userId = currentUser?.id || ""
 
-  const courses = [
-    {
-      id: 1,
-      title: "Web Development Fundamentals",
-      description: "Learn the basics of HTML, CSS, and JavaScript",
-      banner: "https://images.unsplash.com/photo-1633356122544-f134324ef6db?w=400&h=200&fit=crop",
-      students: 1234,
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      title: "React Advanced Patterns",
-      description: "Master advanced React patterns and best practices",
-      banner: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=200&fit=crop",
-      students: 892,
-      rating: 4.9,
-    },
-    {
-      id: 3,
-      title: "Machine Learning Basics",
-      description: "Introduction to ML concepts and algorithms",
-      banner: "https://images.unsplash.com/photo-1516321318423-f06f70d504f0?w=400&h=200&fit=crop",
-      students: 567,
-      rating: 4.7,
-    },
-  ]
+  // Fetch user enrollments
+  const { data: enrollmentsResponse, isLoading } = useQuery({
+    queryKey: ["user-enrollments", userId],
+    queryFn: () => getUserEnrollments(userId),
+    enabled: !!userId,
+  })
 
-  const filteredCourses = courses.filter(
-    (course) =>
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const enrollments = enrollmentsResponse?.data || []
+
+  // Transform enrollments to the format expected by the UI
+  const enrolledCourses = enrollments.map((enrollment: EnrollmentWithCourse) => {
+    const course = enrollment.course
+    const progress = enrollment.progress || 0
+    const status = enrollment.status === "completed" ? "completed" : enrollment.status === "paused" ? "paused" : "in-progress"
+    
+    // Get lesson count from course.lessons array
+    const totalLessons = course.lessons?.length || 0
+    // Calculate completed lessons based on progress percentage
+    const completedLessons = totalLessons > 0 ? Math.round((progress / 100) * totalLessons) : 0
+
+    return {
+      id: course.id,
+      title: course.title,
+      description: course.description || "",
+      progress: progress,
+      status: status,
+      lessons: totalLessons,
+      completedLessons: completedLessons,
+      banner: course.thumbnail || "/placeholder.svg",
+      enrollmentId: enrollment.id,
+      slug: course.slug,
+    }
+  })
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Browse Courses</h1>
-          <p className="text-muted-foreground">Explore our selection of courses</p>
+          <h1 className="text-3xl font-bold text-foreground">My Courses</h1>
+          <p className="text-muted-foreground">View and continue your enrolled courses</p>
         </div>
 
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search size={20} className="absolute left-3 top-2.5 text-muted-foreground" />
-            <Input
-              placeholder="Search courses..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading your courses...</span>
           </div>
-        </div>
-
-        {filteredCourses.length > 0 ? (
+        ) : enrolledCourses.length === 0 ? (
+          <Card className="border-border/50">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">No courses yet</h3>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                You haven't enrolled in any courses yet.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCourses.map((course) => (
-              <Card key={course.id} className="overflow-hidden border-border/50 hover:border-border transition-colors">
+            {enrolledCourses.map((course) => (
+              <Card
+                key={course.id}
+                className="overflow-hidden border-border/50 hover:border-border transition-colors"
+              >
                 <div className="aspect-video bg-muted overflow-hidden">
                   <img
                     src={course.banner || "/placeholder.svg"}
@@ -75,25 +87,38 @@ export default function CourseListPage() {
                   />
                 </div>
                 <CardHeader>
-                  <CardTitle className="line-clamp-2">{course.title}</CardTitle>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base line-clamp-2 flex-1">{course.title}</CardTitle>
+                    {course.status === "completed" && (
+                      <Badge className="flex-shrink-0">
+                        <CheckCircle2 size={12} className="mr-1" />
+                        Complete
+                      </Badge>
+                    )}
+                  </div>
                   <CardDescription className="line-clamp-2">{course.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{course.students} students</span>
-                    <span>⭐ {course.rating}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{course.progress}%</span>
+                    </div>
+                    <Progress value={course.progress} />
+                    <p className="text-xs text-muted-foreground">
+                      {course.completedLessons} of {course.lessons} lessons
+                    </p>
                   </div>
-                  <Button className="w-full">Enroll Now</Button>
+                  <Button asChild size="sm" className="w-full">
+                    <Link href={`/classroom/course/${course.slug}`}>
+                      <PlayCircle size={16} className="mr-2" />
+                      {course.status === "completed" ? "Review" : "Continue"}
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : (
-          <Card className="border-border/50">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-muted-foreground">No courses found matching "{searchQuery}"</p>
-            </CardContent>
-          </Card>
         )}
       </div>
     </DashboardLayout>

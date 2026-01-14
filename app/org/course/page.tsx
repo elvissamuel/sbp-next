@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Plus, Edit2, Eye, Trash2, Loader2, UserPlus } from "lucide-react"
-import { getCourses, getOrganizationMembers, enrollStudent, type CourseWithRelations, type OrganizationMember } from "@/lib/api-calls"
+import { MoreHorizontal, Plus, Edit2, Eye, Trash2, Loader2, UserPlus, Download, FileText, HelpCircle } from "lucide-react"
+import { getCourses, getOrganizationMembers, enrollStudent, getDefaultCourses, copyCourse, type CourseWithRelations, type OrganizationMember } from "@/lib/api-calls"
 import { getPrimaryOrganization } from "@/lib/session"
 import { format } from "date-fns"
 import {
@@ -36,6 +36,8 @@ export default function CourseManagementPage() {
   const [selectedCourse, setSelectedCourse] = useState<CourseWithRelations | null>(null)
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [enrollError, setEnrollError] = useState<string | null>(null)
+  const [openPreview, setOpenPreview] = useState(false)
+  const [previewCourse, setPreviewCourse] = useState<CourseWithRelations | null>(null)
 
   // Fetch courses for the organization
   const { data: coursesResponse, isLoading, error, refetch } = useQuery({
@@ -61,8 +63,15 @@ export default function CourseManagementPage() {
     enabled: !!organizationId && openEnroll,
   })
 
+  // Fetch default courses
+  const { data: defaultCoursesResponse, isLoading: isLoadingDefaultCourses } = useQuery({
+    queryKey: ["default-courses"],
+    queryFn: () => getDefaultCourses(),
+  })
+
   const courses = coursesResponse?.data || []
   const members = membersResponse?.data || []
+  const defaultCourses = defaultCoursesResponse?.data || []
 
   // Prepare options for react-select
   const memberOptions = useMemo(() => {
@@ -148,6 +157,54 @@ export default function CourseManagementPage() {
       console.error("Error enrolling student:", error)
     },
   })
+
+  // Copy course mutation
+  const copyCourseMutation = useMutation({
+    mutationFn: ({ courseId, organizationId }: { courseId: string; organizationId: string }) =>
+      copyCourse(courseId, organizationId),
+    onSuccess: (response) => {
+      if (response.data) {
+        toast.success("Course added to organization", {
+          description: `"${response.data.title}" has been added to your organization.`,
+        })
+        queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
+      } else if (response.error) {
+        const errorMsg = typeof response.error === 'string'
+          ? response.error
+          : response.error?.message || "Failed to add course"
+        toast.error("Failed to add course", {
+          description: errorMsg,
+        })
+      }
+    },
+    onError: (error: any) => {
+      console.error("Error copying course:", error)
+      const errorMessage = typeof error?.message === 'string'
+        ? error.message
+        : "Failed to add course. Please try again."
+      toast.error("Failed to add course", {
+        description: errorMessage,
+      })
+    },
+  })
+
+  const handleCopyCourse = async (courseId: string) => {
+    if (!organizationId) {
+      toast.error("Error", {
+        description: "Organization ID not found",
+      })
+      return
+    }
+    copyCourseMutation.mutate({ courseId, organizationId })
+    // Close preview if open
+    setOpenPreview(false)
+    setPreviewCourse(null)
+  }
+
+  const handlePreviewCourse = (course: CourseWithRelations) => {
+    setPreviewCourse(course)
+    setOpenPreview(true)
+  }
 
   const handleOpenEnroll = (course: CourseWithRelations) => {
     setSelectedCourse(course)
@@ -272,7 +329,83 @@ export default function CourseManagementPage() {
           </div>
         </div>
 
-        <Card className="border-border/50">
+        {/* Default Courses Section */}
+        {defaultCourses.length > 0 && (
+          <Card className="border-border/50">
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold text-foreground">Default Courses</h2>
+                <p className="text-sm text-muted-foreground">
+                  Add pre-built courses to your organization. These courses are available to all organizations.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {isLoadingDefaultCourses ? (
+                  <div className="col-span-2 flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading default courses...</span>
+                  </div>
+                ) : (
+                  defaultCourses.map((course) => (
+                    <Card key={course.id} className="border-border/40">
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{course.title}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                              {course.description}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>
+                              {course.lessons?.length || 0} lessons
+                              {course.quizzes && (course.quizzes as any[]).length > 0 && (
+                                <> • {(course.quizzes as any[]).length} quiz{(course.quizzes as any[]).length !== 1 ? "zes" : ""}</>
+                              )}
+                            </span>
+                            <Badge variant="outline">{course.level}</Badge>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handlePreviewCourse(course)}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              <Eye size={16} className="mr-2" />
+                              Preview
+                            </Button>
+                            <Button
+                              onClick={() => handleCopyCourse(course.id)}
+                              disabled={copyCourseMutation.isPending}
+                              className="flex-1"
+                            >
+                              {copyCourseMutation.isPending ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Adding...
+                                </>
+                              ) : (
+                                <>
+                                  <Download size={16} className="mr-2" />
+                                  Add
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Organization Courses Section */}
+        <div>
+          <h2 className="text-xl font-semibold text-foreground mb-4">Your Courses</h2>
+          <Card className="border-border/50">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -356,6 +489,140 @@ export default function CourseManagementPage() {
             </Table>
           </CardContent>
         </Card>
+        </div>
+
+        {/* Course Preview Dialog */}
+        <Dialog open={openPreview} onOpenChange={setOpenPreview}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Course Preview</DialogTitle>
+              <DialogDescription>
+                Review the course content before adding it to your organization
+              </DialogDescription>
+            </DialogHeader>
+            {previewCourse && (
+              <div className="space-y-6">
+                {/* Course Header */}
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold text-foreground">{previewCourse.title}</h2>
+                  <p className="text-muted-foreground">{previewCourse.description}</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{previewCourse.level}</Badge>
+                    <Badge variant="secondary">{previewCourse.status}</Badge>
+                  </div>
+                </div>
+
+                {/* Lessons Section */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <FileText size={18} />
+                    Lessons ({previewCourse.lessons?.length || 0})
+                  </h3>
+                  {previewCourse.lessons && (previewCourse.lessons as any[]).length > 0 ? (
+                    <div className="space-y-2">
+                      {(previewCourse.lessons as any[]).map((lesson: any, index: number) => (
+                        <Card key={lesson.id || index} className="border-border/40">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    Lesson {lesson.order + 1}
+                                  </span>
+                                  {lesson.duration && (
+                                    <span className="text-xs text-muted-foreground">
+                                      • {lesson.duration} min
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="font-semibold text-foreground">{lesson.title}</h4>
+                                {lesson.content && (
+                                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                    {lesson.content.replace(/[#*`]/g, "").substring(0, 150)}...
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No lessons available</p>
+                  )}
+                </div>
+
+                {/* Quizzes Section */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <HelpCircle size={18} />
+                    Quizzes ({previewCourse.quizzes?.length || 0})
+                  </h3>
+                  {previewCourse.quizzes && (previewCourse.quizzes as any[]).length > 0 ? (
+                    <div className="space-y-2">
+                      {(previewCourse.quizzes as any[]).map((quiz: any, index: number) => (
+                        <Card key={quiz.id || index} className="border-border/40">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-foreground">{quiz.title}</h4>
+                                {quiz.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {quiz.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <span>
+                                    {quiz.questions?.length || 0} question{(quiz.questions?.length || 0) !== 1 ? "s" : ""}
+                                  </span>
+                                  <span>• Passing Score: {quiz.passingScore}%</span>
+                                  <span>• Total Points: {quiz.totalPoints}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No quizzes available</p>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t">
+                  <Button
+                    onClick={() => {
+                      setOpenPreview(false)
+                      setPreviewCourse(null)
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={() => handleCopyCourse(previewCourse.id)}
+                    disabled={copyCourseMutation.isPending}
+                    className="flex-1"
+                  >
+                    {copyCourseMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} className="mr-2" />
+                        Add to Organization
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Enroll Student Dialog */}
         <Dialog open={openEnroll} onOpenChange={setOpenEnroll}>

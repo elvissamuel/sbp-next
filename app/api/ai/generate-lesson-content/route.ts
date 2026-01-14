@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
         .map((r) => r.content as string)
     }
 
-    // Generate content with references
-    const content = await generateLessonContent(topic, course.level || "beginner", referenceContent)
+    // Generate content with references, including course title for context
+    const content = await generateLessonContent(topic, course.level || "beginner", referenceContent, course.title)
 
     return NextResponse.json({ content })
   } catch (error) {

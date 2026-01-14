@@ -52,6 +52,7 @@ export const CreateLessonSchema = z.object({
   courseId: z.string().min(1, "Course ID is required"),
   title: z.string().min(1, "Title is required"),
   content: z.string().min(1, "Content is required"),
+  videoUrl: z.string().optional(), // Optional video URL
   resourceIds: z.array(z.string()).optional(), // Optional array of resource IDs to reference
 })
 

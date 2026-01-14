@@ -142,6 +142,24 @@ export default function ClassroomLessonView() {
             {isCurrentLessonCompleted && <CheckCircle2 size={24} className="text-green-600" />}
           </div>
 
+          {/* Video Player */}
+          {lesson.videoUrl && (
+            <Card className="border-border/50">
+              <CardContent className="pt-6">
+                <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+                  <video
+                    controls
+                    className="w-full h-full"
+                    src={lesson.videoUrl}
+                    preload="metadata"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-border/50">
             <CardContent className="pt-6">
               <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
