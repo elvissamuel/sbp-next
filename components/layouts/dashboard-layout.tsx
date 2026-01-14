@@ -19,12 +19,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-const allNavItems = [
-  { label: "Dashboard", href: "/dashboard", adminOnly: false },
-  { label: "Courses", href: "/org/course", adminOnly: true },
-  { label: "Employees", href: "/org/employee", adminOnly: true },
-  { label: "Groups", href: "/org/groups", adminOnly: true },
-  { label: "Settings", href: "/settings/org", adminOnly: true },
+type NavItem = {
+  label: string
+  href: string
+  adminOnly: boolean
+  exactMatch?: boolean
+  memberHref?: string
+}
+
+const allNavItems: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", adminOnly: false, exactMatch: true },
+  { label: "Courses", href: "/org/course", adminOnly: false, memberHref: "/course", exactMatch: false },
+  { label: "Employees", href: "/org/employee", adminOnly: true, exactMatch: false },
+  { label: "Groups", href: "/org/groups", adminOnly: true, exactMatch: false },
+  { label: "Settings", href: "/settings/org", adminOnly: true, exactMatch: false },
 ]
 
 export function DashboardLayout({
@@ -46,8 +54,16 @@ export function DashboardLayout({
   const userRole = primaryOrg?.role || "member"
   const isAdmin = userRole === "admin"
 
-  // Filter nav items based on user role
-  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin)
+  // Filter and transform nav items based on user role
+  const navItems = allNavItems
+    .filter((item) => !item.adminOnly || isAdmin)
+    .map((item) => {
+      // For members, use memberHref if available, otherwise use the regular href
+      if (!isAdmin && item.memberHref) {
+        return { ...item, href: item.memberHref }
+      }
+      return item
+    })
 
   // Calculate user initials
   const getUserInitials = () => {
@@ -74,8 +90,13 @@ export function DashboardLayout({
 
   // Find the active nav item
   const activeNavItem = navItems.find((item) => {
-    if (item.href === "/dashboard") {
-      return pathname === "/dashboard"
+    if (item.exactMatch) {
+      return pathname === item.href
+    }
+    // For non-exact matches, check if pathname starts with the href
+    // Also handle special cases like /classroom/course routes
+    if (item.href === "/course") {
+      return pathname === "/course" || pathname.startsWith("/classroom/course")
     }
     return pathname.startsWith(item.href)
   })
@@ -104,9 +125,17 @@ export function DashboardLayout({
 
         <nav className="p-4 space-y-2">
           {navItems.map((item) => {
-            const isActive = item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href)
+            let isActive = false
+            if (item.exactMatch) {
+              isActive = pathname === item.href
+            } else {
+              // For courses, also match classroom routes
+              if (item.href === "/course") {
+                isActive = pathname === "/course" || pathname.startsWith("/classroom/course")
+              } else {
+                isActive = pathname.startsWith(item.href)
+              }
+            }
             
             return (
               <Link

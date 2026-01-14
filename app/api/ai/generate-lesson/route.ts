@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
-    // Generate content
-    const content = await generateLessonContent(topic, courseLevel)
+    // Generate content, including course title for context
+    const content = await generateLessonContent(topic, courseLevel, undefined, course.title)
 
     // Save to database
     const lesson = await prisma.lesson.create({

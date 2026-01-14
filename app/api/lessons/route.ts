@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { courseId, title, content, resourceIds } = validationResult.data
+    const { courseId, title, content, videoUrl, resourceIds } = validationResult.data
 
     // Verify course exists
     const course = await prisma.course.findUnique({
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         courseId,
         title,
         content,
+        videoUrl: videoUrl || null,
         order: nextOrder,
       },
     })

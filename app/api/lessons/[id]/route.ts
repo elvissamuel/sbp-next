@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json()
 
     // Validate request body (but courseId should come from existing lesson, not body)
-    const { title, content } = body
+    const { title, content, videoUrl } = body
 
     if (!title || !content) {
       return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
@@ -67,6 +67,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data: {
         title,
         content,
+        videoUrl: videoUrl || null,
       },
     })
 
