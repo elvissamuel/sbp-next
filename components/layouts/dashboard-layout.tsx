@@ -105,10 +105,10 @@ export function DashboardLayout({
   const pageTitle = activeNavItem?.label || "Dashboard"
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-40 w-64 bg-card border-r border-border/40 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border/40 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         <div className="p-6 border-b border-border/40">
           <Link href="/" className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export function DashboardLayout({
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col md:ml-64">
         <header className="border-b border-border/40 bg-card sticky top-0 z-20">
           <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <button className="md:hidden p-2 hover:bg-accent rounded-md" onClick={() => setSidebarOpen(!sidebarOpen)}>
