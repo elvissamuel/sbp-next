@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { courseId, title, description, status, quizType, numQuestions, resourceIds } = validationResult.data
+    const { courseId, title, description, status, quizType, numQuestions, resourceIds, lessonIds } = validationResult.data
 
     // Verify course exists
     const course = await prisma.course.findUnique({
@@ -32,9 +32,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
-    // Fetch reference resources if provided
+    // Fetch reference lessons if provided (priority: lessons > resources > course description)
     let referenceContent: string[] = []
-    if (resourceIds && Array.isArray(resourceIds) && resourceIds.length > 0) {
+    if (lessonIds && Array.isArray(lessonIds) && lessonIds.length > 0) {
+      const lessons = await prisma.lesson.findMany({
+        where: {
+          id: { in: lessonIds },
+          courseId: courseId,
+        },
+        select: { title: true, content: true },
+        orderBy: { order: "asc" },
+      })
+      
+      // Combine lesson title and content for better context
+      referenceContent = lessons
+        .filter((l) => l.content)
+        .map((l) => `Lesson: ${l.title}\n\n${l.content}`)
+    } else if (resourceIds && Array.isArray(resourceIds) && resourceIds.length > 0) {
+      // Fallback to resources if no lessons are selected
       const resources = await prisma.courseResource.findMany({
         where: {
           id: { in: resourceIds },
