@@ -39,7 +39,7 @@ export default function ClassroomCourseView() {
     return index < completedLessonsCount
   }
 
-  // Combine lessons and quizzes, sorted by order/created date
+  // Combine lessons and quizzes, sorted by creation date chronologically
   const allContent = [
     ...lessons.map((lesson: Lesson, index: number) => ({
       id: lesson.id,
@@ -54,22 +54,16 @@ export default function ClassroomCourseView() {
       id: quiz.id,
       type: "quiz" as const,
       title: quiz.title,
-      order: 9999, // Quizzes at the end
+      order: null,
       completed: false, // Quiz completion tracked separately
       duration: null,
       createdAt: quiz.createdAt,
     })),
   ].sort((a, b) => {
-    // Lessons come first, sorted by order
-    if (a.type === "lesson" && b.type === "lesson") {
-      return a.order - b.order
-    }
-    // Then quizzes, sorted by creation date
-    if (a.type === "quiz" && b.type === "quiz") {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    }
-    // Lessons always before quizzes
-    return a.type === "lesson" ? -1 : 1
+    // Sort by creation date chronologically (oldest first)
+    const dateA = new Date(a.createdAt).getTime()
+    const dateB = new Date(b.createdAt).getTime()
+    return dateA - dateB
   })
 
   // Find the first incomplete lesson/quiz for "Start Learning" or "Continue Learning"
@@ -155,55 +149,63 @@ export default function ClassroomCourseView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {lessons.map((lesson: Lesson, index: number) => {
-                  const isCompleted = isLessonCompleted(index)
-                  return (
-                    <Link
-                      key={lesson.id}
-                      href={`/classroom/course/${slug}/lesson/${lesson.id}`}
-                      className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
-                    >
-                      <div className="flex-shrink-0 mt-0.5">
-                        {isCompleted ? (
-                          <CheckCircle2 size={18} className="text-green-600" />
-                        ) : (
-                          <Circle size={18} className="text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
-                          {lesson.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-muted-foreground">Lesson {lesson.order + 1}</p>
-                          {lesson.duration && (
-                            <>
-                              <span className="text-xs text-muted-foreground">•</span>
-                              <p className="text-xs text-muted-foreground">{lesson.duration} min</p>
-                            </>
+                {allContent.map((item) => {
+                  if (item.type === "lesson") {
+                    // Find the original lesson index for completion status
+                    const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
+                    const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
+                    const lesson = lessons.find((l: Lesson) => l.id === item.id)
+                    
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/classroom/course/${slug}/lesson/${item.id}`}
+                        className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {isCompleted ? (
+                            <CheckCircle2 size={18} className="text-green-600" />
+                          ) : (
+                            <Circle size={18} className="text-muted-foreground" />
                           )}
                         </div>
-                      </div>
-                    </Link>
-                  )
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
+                            {item.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-muted-foreground">Lesson {lesson?.order !== undefined ? lesson.order + 1 : ''}</p>
+                            {item.duration && (
+                              <>
+                                <span className="text-xs text-muted-foreground">•</span>
+                                <p className="text-xs text-muted-foreground">{item.duration} min</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  } else {
+                    // Quiz item
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/classroom/course/${slug}/quiz/${item.id}`}
+                        className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          <HelpCircle size={18} className="text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Quiz</p>
+                        </div>
+                      </Link>
+                    )
+                  }
                 })}
-                {quizzes.map((quiz: Quiz) => (
-                  <Link
-                    key={quiz.id}
-                    href={`/classroom/course/${slug}/quiz/${quiz.id}`}
-                    className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
-                  >
-                    <div className="flex-shrink-0 mt-0.5">
-                      <HelpCircle size={18} className="text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
-                        {quiz.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">Quiz</p>
-                    </div>
-                  </Link>
-                ))}
               </div>
             </CardContent>
           </Card>
