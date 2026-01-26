@@ -15,8 +15,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import SelectComponent from "react-select"
 import { Loader2 } from "lucide-react"
-import { createQuiz, getCourseResources, type CourseResource } from "@/lib/api-calls"
+import { createQuiz, getCourseResources, getCourse, type CourseResource, type Lesson } from "@/lib/api-calls"
 import { CreateQuizSchema } from "@/lib/validation-schema"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -28,6 +29,13 @@ export default function CreateQuizPage() {
   const router = useRouter()
   const courseId = params.courseId as string
 
+  // Fetch course with lessons for selection
+  const { data: courseResponse, isLoading: courseLoading } = useQuery({
+    queryKey: ["course", courseId],
+    queryFn: () => getCourse(courseId),
+    enabled: !!courseId,
+  })
+
   // Fetch course resources for selection
   const { data: resourcesResponse, isLoading: resourcesLoading } = useQuery({
     queryKey: ["course-resources", courseId],
@@ -35,6 +43,8 @@ export default function CreateQuizPage() {
     enabled: !!courseId,
   })
 
+  const course = courseResponse?.data
+  const lessons = course?.lessons || []
   const resources = resourcesResponse?.data || []
 
   const form = useForm<FormValues>({
@@ -47,11 +57,26 @@ export default function CreateQuizPage() {
       quizType: "multiple_choice",
       numQuestions: 5,
       resourceIds: [],
+      lessonIds: [],
     },
   })
 
   const selectedResourceIds = form.watch("resourceIds") || []
+  const selectedLessonIds = form.watch("lessonIds") || []
   const numQuestions = form.watch("numQuestions") || 5
+
+  // Prepare lesson options for react-select
+  const lessonOptions = lessons.map((lesson: Lesson) => ({
+    value: lesson.id,
+    label: lesson.order !== undefined 
+      ? `${lesson.title} (Lesson ${lesson.order + 1})`
+      : lesson.title,
+  }))
+
+  // Get selected lesson options for react-select
+  const selectedLessonOptions = lessonOptions.filter(option => 
+    selectedLessonIds.includes(option.value)
+  )
 
   // Create quiz mutation
   const createQuizMutation = useMutation({
@@ -106,6 +131,7 @@ export default function CreateQuizPage() {
       ...values,
       courseId,
       resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
+      lessonIds: selectedLessonIds.length > 0 ? selectedLessonIds : undefined,
     }
     createQuizMutation.mutate(submitData)
   }
@@ -209,11 +235,55 @@ export default function CreateQuizPage() {
                 )}
               </div>
 
+              {/* Lesson Selection */}
+              <div className="space-y-2">
+                <Label>Reference Lessons (Optional)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Select lessons that AI can reference when generating quiz questions. This takes priority over resources.
+                </p>
+                {courseLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading lessons...
+                  </div>
+                ) : lessons.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No lessons available. <Link href={`/org/course/${courseId}/lesson/create`} className="text-primary hover:underline">Create lessons</Link> first.
+                  </p>
+                ) : (
+                  <SelectComponent
+                    isMulti
+                    options={lessonOptions}
+                    value={selectedLessonOptions}
+                    onChange={(selected) => {
+                      const selectedIds = selected 
+                        ? (selected as typeof lessonOptions).map(option => option.value)
+                        : []
+                      form.setValue("lessonIds", selectedIds)
+                    }}
+                    placeholder="Select lessons..."
+                    isDisabled={createQuizMutation.isPending}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        minHeight: "42px",
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        zIndex: 50,
+                      }),
+                    }}
+                  />
+                )}
+              </div>
+
               {/* Resource Selection */}
               <div className="space-y-2">
                 <Label>Reference Resources (Optional)</Label>
                 <p className="text-sm text-muted-foreground">
-                  Select resources that AI can reference when generating quiz questions
+                  Select resources that AI can reference when generating quiz questions. Only used if no lessons are selected.
                 </p>
                 {resourcesLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -256,7 +326,8 @@ export default function CreateQuizPage() {
               {/* Info Box */}
               <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> The quiz will be automatically generated using AI based on your selected resources or course content. 
+                  <strong>Note:</strong> The quiz will be automatically generated using AI based on your selected lessons, resources, or course content. 
+                  {selectedLessonIds.length > 0 && " Selected lessons will be prioritized."}
                   {numQuestions > 0 && ` It will contain ${numQuestions} question${numQuestions > 1 ? 's' : ''}.`}
                 </p>
               </div>
