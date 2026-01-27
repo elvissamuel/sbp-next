@@ -8,6 +8,11 @@ import { Menu, X, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { getCurrentUser, clearSession } from "@/lib/session"
 import { toast } from "sonner"
 
@@ -70,9 +75,26 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </Link>
             {user ? (
               <>
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-semibold">
-                  {user.email.charAt(0).toUpperCase()}
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                    >
+                      {user.email.charAt(0).toUpperCase()}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5">
+                      <p className="text-sm font-medium text-foreground">
+                        {user.name || "User"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   size="sm"
                   variant="outline"
