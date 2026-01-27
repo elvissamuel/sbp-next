@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState, useMemo, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
@@ -27,6 +28,7 @@ import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 
 export default function CourseManagementPage() {
+  const router = useRouter()
   const queryClient = useQueryClient()
   // Get primary organization from session
   const primaryOrganization = getPrimaryOrganization()
@@ -441,7 +443,11 @@ export default function CourseManagementPage() {
                   </TableRow>
                 )}
                 {!isLoading && !error && courses.map((course) => (
-                  <TableRow key={course.id} className="border-border/40">
+                  <TableRow 
+                    key={course.id} 
+                    className="border-border/40 cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => router.push(`/org/course/${course.id}`)}
+                  >
                     <TableCell className="font-medium">{course.title}</TableCell>
                     <TableCell>{course.enrollments?.length || 0}</TableCell>
                     <TableCell>
@@ -452,7 +458,7 @@ export default function CourseManagementPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {format(new Date(course.createdAt), "MMM d, yyyy")}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
