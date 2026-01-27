@@ -68,9 +68,35 @@ export default function ClassroomQuizView() {
     return index < completedLessonsCount
   }
 
-  // Find current quiz index
-  const currentQuizIndex = quizzes.findIndex((q: Quiz) => q.id === quizId)
-  const nextQuiz = currentQuizIndex < quizzes.length - 1 ? quizzes[currentQuizIndex + 1] : null
+  // Combine lessons and quizzes, sorted by creation date chronologically
+  const allContent = [
+    ...lessons.map((lesson: Lesson, index: number) => ({
+      id: lesson.id,
+      type: "lesson" as const,
+      title: lesson.title,
+      order: lesson.order,
+      completed: isLessonCompleted(index),
+      duration: lesson.duration,
+      createdAt: lesson.createdAt,
+    })),
+    ...quizzes.map((quiz: Quiz) => ({
+      id: quiz.id,
+      type: "quiz" as const,
+      title: quiz.title,
+      completed: false,
+      duration: null,
+      createdAt: quiz.createdAt,
+    })),
+  ].sort((a, b) => {
+    // Sort by creation date chronologically (oldest first)
+    const dateA = new Date(a.createdAt).getTime()
+    const dateB = new Date(b.createdAt).getTime()
+    return dateA - dateB
+  })
+
+  // Find current item index in sorted array
+  const currentItemIndex = allContent.findIndex((item) => item.id === quizId)
+  const nextItem = currentItemIndex < allContent.length - 1 ? allContent[currentItemIndex + 1] : null
 
   // Submit quiz mutation
   const submitQuizMutation = useMutation({
@@ -214,10 +240,14 @@ export default function ClassroomQuizView() {
                       <p className="text-muted-foreground">{quiz.description}</p>
                     )}
                     <div className="flex gap-3 justify-center pt-4">
-                      {isPassed && nextQuiz ? (
+                      {isPassed && nextItem ? (
                         <Button asChild size="lg">
-                          <Link href={`/classroom/course/${slug}/quiz/${nextQuiz.id}`}>
-                            Next Quiz
+                          <Link href={
+                            nextItem.type === "lesson"
+                              ? `/classroom/course/${slug}/lesson/${nextItem.id}`
+                              : `/classroom/course/${slug}/quiz/${nextItem.id}`
+                          }>
+                            Next {nextItem.type === "lesson" ? "Lesson" : "Quiz"}
                             <ChevronRight size={18} className="ml-2" />
                           </Link>
                         </Button>
@@ -247,58 +277,72 @@ export default function ClassroomQuizView() {
               <Card className="border-border/50 sticky top-20">
                 <CardContent className="pt-6">
                   <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                    {/* Sidebar content same as lesson view */}
-                    {lessons.map((l: Lesson, index: number) => {
-                      const isCompleted = isLessonCompleted(index)
-                      return (
-                        <Link
-                          key={l.id}
-                          href={`/classroom/course/${slug}/lesson/${l.id}`}
-                          className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
-                        >
-                          <div className="flex-shrink-0 mt-0.5">
-                            {isCompleted ? (
-                              <CheckCircle2 size={18} className="text-green-600" />
-                            ) : (
-                              <Circle size={18} className="text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
-                              {l.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-muted-foreground">Lesson {l.order + 1}</p>
+                    {allContent.map((item) => {
+                      if (item.type === "lesson") {
+                        // Find the original lesson index for completion status
+                        const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
+                        const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
+                        const lesson = lessons.find((l: Lesson) => l.id === item.id)
+                        
+                        return (
+                          <Link
+                            key={item.id}
+                            href={`/classroom/course/${slug}/lesson/${item.id}`}
+                            className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
+                          >
+                            <div className="flex-shrink-0 mt-0.5">
+                              {isCompleted ? (
+                                <CheckCircle2 size={18} className="text-green-600" />
+                              ) : (
+                                <Circle size={18} className="text-muted-foreground" />
+                              )}
                             </div>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                    {quizzes.map((q: Quiz) => {
-                      const isActive = q.id === quizId
-                      return (
-                        <Link
-                          key={q.id}
-                          href={`/classroom/course/${slug}/quiz/${q.id}`}
-                          className={cn(
-                            "flex items-start gap-3 p-2 rounded-md transition group",
-                            isActive ? "bg-accent border border-primary/20" : "hover:bg-accent"
-                          )}
-                        >
-                          <div className="flex-shrink-0 mt-0.5">
-                            <HelpCircle size={18} className="text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={cn(
-                              "text-sm font-medium transition line-clamp-2",
-                              isActive ? "text-primary" : "text-foreground group-hover:text-primary"
-                            )}>
-                              {q.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Quiz</p>
-                          </div>
-                        </Link>
-                      )
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
+                                {item.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-muted-foreground">Lesson {lesson?.order !== undefined ? lesson.order + 1 : ''}</p>
+                                {item.duration && (
+                                  <>
+                                    <span className="text-xs text-muted-foreground">•</span>
+                                    <div className="flex items-center gap-1">
+                                      <Clock size={10} />
+                                      <p className="text-xs text-muted-foreground">{item.duration} min</p>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        )
+                      } else {
+                        // Quiz item
+                        const isActive = item.id === quizId
+                        return (
+                          <Link
+                            key={item.id}
+                            href={`/classroom/course/${slug}/quiz/${item.id}`}
+                            className={cn(
+                              "flex items-start gap-3 p-2 rounded-md transition group",
+                              isActive ? "bg-accent border border-primary/20" : "hover:bg-accent"
+                            )}
+                          >
+                            <div className="flex-shrink-0 mt-0.5">
+                              <HelpCircle size={18} className="text-blue-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={cn(
+                                "text-sm font-medium transition line-clamp-2",
+                                isActive ? "text-primary" : "text-foreground group-hover:text-primary"
+                              )}>
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">Quiz</p>
+                            </div>
+                          </Link>
+                        )
+                      }
                     })}
                   </div>
                 </CardContent>
@@ -413,57 +457,72 @@ export default function ClassroomQuizView() {
             <Card className="border-border/50 sticky top-20">
               <CardContent className="pt-6">
                 <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                  {lessons.map((l: Lesson, index: number) => {
-                    const isCompleted = isLessonCompleted(index)
-                    return (
-                      <Link
-                        key={l.id}
-                        href={`/classroom/course/${slug}/lesson/${l.id}`}
-                        className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          {isCompleted ? (
-                            <CheckCircle2 size={18} className="text-green-600" />
-                          ) : (
-                            <Circle size={18} className="text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
-                            {l.title}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-muted-foreground">Lesson {l.order + 1}</p>
+                  {allContent.map((item) => {
+                    if (item.type === "lesson") {
+                      // Find the original lesson index for completion status
+                      const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
+                      const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
+                      const lesson = lessons.find((l: Lesson) => l.id === item.id)
+                      
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/classroom/course/${slug}/lesson/${item.id}`}
+                          className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
+                        >
+                          <div className="flex-shrink-0 mt-0.5">
+                            {isCompleted ? (
+                              <CheckCircle2 size={18} className="text-green-600" />
+                            ) : (
+                              <Circle size={18} className="text-muted-foreground" />
+                            )}
                           </div>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                  {quizzes.map((q: Quiz) => {
-                    const isActive = q.id === quizId
-                    return (
-                      <Link
-                        key={q.id}
-                        href={`/classroom/course/${slug}/quiz/${q.id}`}
-                        className={cn(
-                          "flex items-start gap-3 p-2 rounded-md transition group",
-                          isActive ? "bg-accent border border-primary/20" : "hover:bg-accent"
-                        )}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          <HelpCircle size={18} className="text-blue-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={cn(
-                            "text-sm font-medium transition line-clamp-2",
-                            isActive ? "text-primary" : "text-foreground group-hover:text-primary"
-                          )}>
-                            {q.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">Quiz</p>
-                        </div>
-                      </Link>
-                    )
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground group-hover:text-primary transition line-clamp-2">
+                              {item.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-muted-foreground">Lesson {lesson?.order !== undefined ? lesson.order + 1 : ''}</p>
+                              {item.duration && (
+                                <>
+                                  <span className="text-xs text-muted-foreground">•</span>
+                                  <div className="flex items-center gap-1">
+                                    <Clock size={10} />
+                                    <p className="text-xs text-muted-foreground">{item.duration} min</p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      )
+                    } else {
+                      // Quiz item
+                      const isActive = item.id === quizId
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/classroom/course/${slug}/quiz/${item.id}`}
+                          className={cn(
+                            "flex items-start gap-3 p-2 rounded-md transition group",
+                            isActive ? "bg-accent border border-primary/20" : "hover:bg-accent"
+                          )}
+                        >
+                          <div className="flex-shrink-0 mt-0.5">
+                            <HelpCircle size={18} className="text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn(
+                              "text-sm font-medium transition line-clamp-2",
+                              isActive ? "text-primary" : "text-foreground group-hover:text-primary"
+                            )}>
+                              {item.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Quiz</p>
+                          </div>
+                        </Link>
+                      )
+                    }
                   })}
                 </div>
               </CardContent>
