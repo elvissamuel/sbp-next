@@ -304,11 +304,11 @@ export default function ViewCoursePage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {format(new Date(lesson.createdAt), "MMM d, yyyy")}
                           </TableCell>
-                          <TableCell>
+                          {/* <TableCell>
                             <Button variant="ghost" size="sm" asChild>
                               <Link href={`/org/course/${courseId}/lesson/${lesson.id}`}>View</Link>
                             </Button>
-                          </TableCell>
+                          </TableCell> */}
                         </TableRow>
                       ))}
                       {quizzes.map((quiz: Quiz) => (
@@ -355,11 +355,11 @@ export default function ViewCoursePage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {format(new Date(quiz.createdAt), "MMM d, yyyy")}
                           </TableCell>
-                          <TableCell>
+                          {/* <TableCell>
                             <Button variant="ghost" size="sm" asChild>
                               <Link href={`/org/course/${courseId}/quiz/${quiz.id}`}>View</Link>
                             </Button>
-                          </TableCell>
+                          </TableCell> */}
                         </TableRow>
                       ))}
                     </TableBody>
