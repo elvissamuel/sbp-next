@@ -80,6 +80,16 @@ export async function GET(
       })
     }
 
+    // Filter out drafted lessons/quizzes for enrolled users
+    // Admins viewing their own courses should see all content
+    const isEnrolled = !!enrollment
+    const filteredLessons = isEnrolled
+      ? course.lessons.filter((lesson) => lesson.status === "published")
+      : course.lessons
+    const filteredQuizzes = isEnrolled
+      ? course.quizzes.filter((quiz) => quiz.status === "published")
+      : course.quizzes
+
     // Calculate progress (includes quiz performance if enrollment exists)
     let progress = 0
     let completedLessons = 0
@@ -87,6 +97,7 @@ export async function GET(
     
     if (enrollment && userId) {
       // Use the progress calculator to get accurate progress including quizzes
+      // But only count published lessons/quizzes
       const { calculateCourseProgress } = await import("@/lib/progress-calculator")
       const progressData = await calculateCourseProgress(userId, course.id)
       progress = progressData.progress
@@ -94,14 +105,16 @@ export async function GET(
       quizProgress = progressData.quizProgress
     } else {
       // No enrollment, use default values
-      const totalLessons = course.lessons.length
+      const totalLessons = filteredLessons.length
       completedLessons = 0
     }
 
-    const totalLessons = course.lessons.length
+    const totalLessons = filteredLessons.length
 
     return NextResponse.json({
       ...course,
+      lessons: filteredLessons,
+      quizzes: filteredQuizzes,
       enrollment: enrollment
         ? {
             id: enrollment.id,
