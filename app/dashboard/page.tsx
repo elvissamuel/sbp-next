@@ -25,8 +25,13 @@ export default function DashboardPage() {
 
   const enrollments = enrollmentsResponse?.data || []
 
+  // Filter out drafted courses - only show published courses
+  const publishedEnrollments = enrollments.filter(
+    (enrollment: EnrollmentWithCourse) => enrollment.course.status !== "draft"
+  )
+
   // Transform enrollments to the format expected by the UI
-  const enrolledCourses = enrollments.map((enrollment: EnrollmentWithCourse) => {
+  const enrolledCourses = publishedEnrollments.map((enrollment: EnrollmentWithCourse) => {
     const course = enrollment.course
     const progress = enrollment.progress || 0
     const status = enrollment.status === "completed" ? "completed" : enrollment.status === "paused" ? "paused" : "in-progress"

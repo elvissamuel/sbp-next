@@ -117,6 +117,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     videoUrl?: string | null;
     order: number;
     duration?: number | null;
+    status?: string;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -189,9 +190,16 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     description: string | null;
     passingScore: number;
     totalPoints: number;
+    status?: string;
     createdAt: Date;
     updatedAt: Date;
     questions?: QuizQuestion[];
+    attempts?: Array<{
+      id: string
+      passed: boolean
+      score: number
+      attemptedAt: Date
+    }>;
   };
 
   export type QuizQuestion = {
@@ -219,6 +227,15 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/${quizId}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const updateQuizStatus = async (quizId: string, status: string): Promise<IApiResponse<Quiz>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/${quizId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
     }));
   };
 
@@ -338,12 +355,21 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  export const updateLesson = async (lessonId: string, updates: { title: string; content: string }): Promise<IApiResponse<Lesson>> => {
+  export const updateLesson = async (lessonId: string, updates: { title: string; content: string; videoUrl?: string; status?: string }): Promise<IApiResponse<Lesson>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/lessons/${lessonId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
+    }));
+  };
+
+  export const updateLessonStatus = async (lessonId: string, status: string): Promise<IApiResponse<Lesson>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/lessons/${lessonId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
     }));
   };
 

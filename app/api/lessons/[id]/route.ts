@@ -44,13 +44,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const body = await request.json()
 
-    // Validate request body (but courseId should come from existing lesson, not body)
-    const { title, content, videoUrl } = body
-
-    if (!title || !content) {
-      return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
-    }
-
     // Get existing lesson to get courseId
     const existingLesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
@@ -61,28 +54,41 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
     }
 
+    const { title, content, videoUrl, status } = body
+
+    // Build update data object with only provided fields
+    const updateData: {
+      title?: string
+      content?: string
+      videoUrl?: string | null
+      status?: string
+    } = {}
+
+    if (title !== undefined) updateData.title = title
+    if (content !== undefined) updateData.content = content
+    if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null
+    if (status !== undefined) updateData.status = status
+
     // Update lesson
     const lesson = await prisma.lesson.update({
       where: { id: lessonId },
-      data: {
-        title,
-        content,
-        videoUrl: videoUrl || null,
-      },
+      data: updateData,
     })
 
-    // Update lesson content in pgvector for AI retrieval
-    try {
-      await updateLessonInIndex(lesson.id, content, {
-        lessonId: lesson.id,
-        courseId: existingLesson.courseId,
-        organizationId: existingLesson.course.organizationId,
-        courseName: existingLesson.course.title,
-        lessonTitle: lesson.title,
-      })
-    } catch (error) {
-      console.error("Error updating lesson in pgvector:", error)
-      // Don't fail the request if indexing fails, but log it
+    // Update lesson content in pgvector for AI retrieval (only if content was updated)
+    if (content !== undefined) {
+      try {
+        await updateLessonInIndex(lesson.id, content, {
+          lessonId: lesson.id,
+          courseId: existingLesson.courseId,
+          organizationId: existingLesson.course.organizationId,
+          courseName: existingLesson.course.title,
+          lessonTitle: lesson.title,
+        })
+      } catch (error) {
+        console.error("Error updating lesson in pgvector:", error)
+        // Don't fail the request if indexing fails, but log it
+      }
     }
 
     return NextResponse.json(lesson)

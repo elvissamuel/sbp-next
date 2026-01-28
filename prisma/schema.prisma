@@ -116,6 +116,7 @@ model Lesson {
   videoUrl    String?
   order       Int      @default(0)
   duration    Int?     // in minutes
+  status      String   @default("draft") // draft, published
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -179,6 +180,7 @@ model Quiz {
   description String?
   passingScore Float   @default(70)
   totalPoints Float   @default(100)
+  status      String   @default("draft") // draft, published
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

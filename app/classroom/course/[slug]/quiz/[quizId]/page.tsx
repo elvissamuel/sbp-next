@@ -68,6 +68,11 @@ export default function ClassroomQuizView() {
     return index < completedLessonsCount
   }
 
+  const isQuizCompleted = (quizId: string) => {
+    const q = quizzes.find((qz: Quiz) => qz.id === quizId)
+    return !!q?.attempts?.[0]?.passed
+  }
+
   // Combine lessons and quizzes, sorted by creation date chronologically
   const allContent = [
     ...lessons.map((lesson: Lesson, index: number) => ({
@@ -83,7 +88,7 @@ export default function ClassroomQuizView() {
       id: quiz.id,
       type: "quiz" as const,
       title: quiz.title,
-      completed: false,
+      completed: isQuizCompleted(quiz.id),
       duration: null,
       createdAt: quiz.createdAt,
     })),
@@ -97,6 +102,10 @@ export default function ClassroomQuizView() {
   // Find current item index in sorted array
   const currentItemIndex = allContent.findIndex((item) => item.id === quizId)
   const nextItem = currentItemIndex < allContent.length - 1 ? allContent[currentItemIndex + 1] : null
+
+  // Lock progression: users can only access items up to the first incomplete item
+  const firstIncompleteIndex = allContent.findIndex((item) => !item.completed)
+  const maxAccessibleIndex = firstIncompleteIndex === -1 ? allContent.length - 1 : firstIncompleteIndex
 
   // Submit quiz mutation
   const submitQuizMutation = useMutation({
@@ -277,18 +286,19 @@ export default function ClassroomQuizView() {
               <Card className="border-border/50 sticky top-20">
                 <CardContent className="pt-6">
                   <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                    {allContent.map((item) => {
+                    {allContent.map((item, idx) => {
+                      const isLocked = idx > maxAccessibleIndex
                       if (item.type === "lesson") {
                         // Find the original lesson index for completion status
                         const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
                         const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
                         const lesson = lessons.find((l: Lesson) => l.id === item.id)
                         
-                        return (
-                          <Link
-                            key={item.id}
-                            href={`/classroom/course/${slug}/lesson/${item.id}`}
-                            className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
+                        const content = (
+                          <div
+                            className={`flex items-start gap-3 p-2 rounded-md transition group ${
+                              isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"
+                            }`}
                           >
                             <div className="flex-shrink-0 mt-0.5">
                               {isCompleted ? (
@@ -314,18 +324,34 @@ export default function ClassroomQuizView() {
                                 )}
                               </div>
                             </div>
+                          </div>
+                        )
+
+                        if (isLocked) {
+                          return <div key={item.id}>{content}</div>
+                        }
+
+                        return (
+                          <Link
+                            key={item.id}
+                            href={`/classroom/course/${slug}/lesson/${item.id}`}
+                            className="block"
+                          >
+                            {content}
                           </Link>
                         )
                       } else {
                         // Quiz item
                         const isActive = item.id === quizId
-                        return (
-                          <Link
-                            key={item.id}
-                            href={`/classroom/course/${slug}/quiz/${item.id}`}
+                        const content = (
+                          <div
                             className={cn(
                               "flex items-start gap-3 p-2 rounded-md transition group",
-                              isActive ? "bg-accent border border-primary/20" : "hover:bg-accent"
+                              isActive
+                                ? "bg-accent border border-primary/20"
+                                : isLocked
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:bg-accent"
                             )}
                           >
                             <div className="flex-shrink-0 mt-0.5">
@@ -340,6 +366,20 @@ export default function ClassroomQuizView() {
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">Quiz</p>
                             </div>
+                          </div>
+                        )
+
+                        if (isLocked) {
+                          return <div key={item.id}>{content}</div>
+                        }
+
+                        return (
+                          <Link
+                            key={item.id}
+                            href={`/classroom/course/${slug}/quiz/${item.id}`}
+                            className="block"
+                          >
+                            {content}
                           </Link>
                         )
                       }
@@ -457,18 +497,19 @@ export default function ClassroomQuizView() {
             <Card className="border-border/50 sticky top-20">
               <CardContent className="pt-6">
                 <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                  {allContent.map((item) => {
+                  {allContent.map((item, idx) => {
+                    const isLocked = idx > maxAccessibleIndex
                     if (item.type === "lesson") {
                       // Find the original lesson index for completion status
                       const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
                       const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
                       const lesson = lessons.find((l: Lesson) => l.id === item.id)
                       
-                      return (
-                        <Link
-                          key={item.id}
-                          href={`/classroom/course/${slug}/lesson/${item.id}`}
-                          className="flex items-start gap-3 p-2 rounded-md hover:bg-accent transition group"
+                      const content = (
+                        <div
+                          className={`flex items-start gap-3 p-2 rounded-md transition group ${
+                            isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"
+                          }`}
                         >
                           <div className="flex-shrink-0 mt-0.5">
                             {isCompleted ? (
@@ -494,18 +535,34 @@ export default function ClassroomQuizView() {
                               )}
                             </div>
                           </div>
+                        </div>
+                      )
+
+                      if (isLocked) {
+                        return <div key={item.id}>{content}</div>
+                      }
+
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/classroom/course/${slug}/lesson/${item.id}`}
+                          className="block"
+                        >
+                          {content}
                         </Link>
                       )
                     } else {
                       // Quiz item
                       const isActive = item.id === quizId
-                      return (
-                        <Link
-                          key={item.id}
-                          href={`/classroom/course/${slug}/quiz/${item.id}`}
+                      const content = (
+                        <div
                           className={cn(
                             "flex items-start gap-3 p-2 rounded-md transition group",
-                            isActive ? "bg-accent border border-primary/20" : "hover:bg-accent"
+                            isActive
+                              ? "bg-accent border border-primary/20"
+                              : isLocked
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:bg-accent"
                           )}
                         >
                           <div className="flex-shrink-0 mt-0.5">
@@ -520,6 +577,20 @@ export default function ClassroomQuizView() {
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">Quiz</p>
                           </div>
+                        </div>
+                      )
+
+                      if (isLocked) {
+                        return <div key={item.id}>{content}</div>
+                      }
+
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/classroom/course/${slug}/quiz/${item.id}`}
+                          className="block"
+                        >
+                          {content}
                         </Link>
                       )
                     }

@@ -49,6 +49,11 @@ export default function ClassroomLessonView() {
     return index < completedLessonsCount
   }
 
+  const isQuizCompleted = (quizId: string) => {
+    const quiz = quizzes.find((q: Quiz) => q.id === quizId)
+    return !!quiz?.attempts?.[0]?.passed
+  }
+
   // Combine lessons and quizzes, sorted by creation date chronologically
   const allContent = [
     ...lessons.map((lesson: Lesson, index: number) => ({
@@ -64,7 +69,7 @@ export default function ClassroomLessonView() {
       id: quiz.id,
       type: "quiz" as const,
       title: quiz.title,
-      completed: false,
+      completed: isQuizCompleted(quiz.id),
       duration: null,
       createdAt: quiz.createdAt,
     })),
@@ -74,6 +79,10 @@ export default function ClassroomLessonView() {
     const dateB = new Date(b.createdAt).getTime()
     return dateA - dateB
   })
+
+  // Lock progression: users can only access items up to the first incomplete item
+  const firstIncompleteIndex = allContent.findIndex((item) => !item.completed)
+  const maxAccessibleIndex = firstIncompleteIndex === -1 ? allContent.length - 1 : firstIncompleteIndex
 
   // Find current item index in sorted array
   const currentItemIndex = allContent.findIndex((item) => item.id === lessonId)
@@ -277,16 +286,23 @@ export default function ClassroomLessonView() {
               </Button>
             )}
             {nextItem ? (
-              <Button variant={isCurrentLessonCompleted ? "default" : "outline"} asChild>
-                <Link href={
-                  nextItem.type === "lesson"
-                    ? `/classroom/course/${slug}/lesson/${nextItem.id}`
-                    : `/classroom/course/${slug}/quiz/${nextItem.id}`
-                }>
+              isCurrentLessonCompleted ? (
+                <Button variant="default" asChild>
+                  <Link href={
+                    nextItem.type === "lesson"
+                      ? `/classroom/course/${slug}/lesson/${nextItem.id}`
+                      : `/classroom/course/${slug}/quiz/${nextItem.id}`
+                  }>
+                    Next {nextItem.type === "lesson" ? "Lesson" : "Quiz"}
+                    <ChevronRight size={16} className="ml-2" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" disabled>
                   Next {nextItem.type === "lesson" ? "Lesson" : "Quiz"}
                   <ChevronRight size={16} className="ml-2" />
-                </Link>
-              </Button>
+                </Button>
+              )
             ) : (
               <Button variant={isCurrentLessonCompleted ? "default" : "outline"} disabled>
                 Next
@@ -318,7 +334,8 @@ export default function ClassroomLessonView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {allContent.map((item) => {
+                {allContent.map((item, idx) => {
+                  const isLocked = idx > maxAccessibleIndex
                   if (item.type === "lesson") {
                     // Find the original lesson index for completion status
                     const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
@@ -326,13 +343,13 @@ export default function ClassroomLessonView() {
                     const lesson = lessons.find((l: Lesson) => l.id === item.id)
                     const isActive = item.id === lessonId
                     
-                    return (
-                      <Link
-                        key={item.id}
-                        href={`/classroom/course/${slug}/lesson/${item.id}`}
+                    const content = (
+                      <div
                         className={`flex items-start gap-3 p-2 rounded-md transition group ${
                           isActive
                             ? "bg-accent border border-primary/20"
+                            : isLocked
+                            ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-accent"
                         }`}
                       >
@@ -362,18 +379,32 @@ export default function ClassroomLessonView() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    )
+
+                    if (isLocked) {
+                      return <div key={item.id}>{content}</div>
+                    }
+
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/classroom/course/${slug}/lesson/${item.id}`}
+                        className="block"
+                      >
+                        {content}
                       </Link>
                     )
                   } else {
                     // Quiz item
                     const isActive = item.id === lessonId
-                    return (
-                      <Link
-                        key={item.id}
-                        href={`/classroom/course/${slug}/quiz/${item.id}`}
+                    const content = (
+                      <div
                         className={`flex items-start gap-3 p-2 rounded-md transition group ${
                           isActive
                             ? "bg-accent border border-primary/20"
+                            : isLocked
+                            ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-accent"
                         }`}
                       >
@@ -388,6 +419,20 @@ export default function ClassroomLessonView() {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">Quiz</p>
                         </div>
+                      </div>
+                    )
+
+                    if (isLocked) {
+                      return <div key={item.id}>{content}</div>
+                    }
+
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/classroom/course/${slug}/quiz/${item.id}`}
+                        className="block"
+                      >
+                        {content}
                       </Link>
                     )
                   }

@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
         courseId,
         title,
         description: description || undefined,
+        status: status || "draft",
         totalPoints,
         passingScore,
         questions: {
