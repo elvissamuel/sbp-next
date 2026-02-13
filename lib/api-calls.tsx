@@ -182,6 +182,18 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  // Upload image file to Vercel Blob storage
+  export const uploadImage = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/upload-image`, {
+      method: "POST",
+      body: formData,
+    }));
+  };
+
   // Quiz types
   export type Quiz = {
     id: string;

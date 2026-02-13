@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Upload, Video } from "lucide-react"
-import { createLesson, getCourseResources, generateLessonContent, extractPdfContent, uploadVideo, type CourseResource } from "@/lib/api-calls"
+import { createLesson, getCourseResources, generateLessonContent, uploadVideo, type CourseResource } from "@/lib/api-calls"
+import { extractTextFromPdfFile } from "@/lib/pdf-client"
 import { CreateLessonSchema } from "@/lib/validation-schema"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -158,7 +159,7 @@ export default function CreateLessonPage() {
     }
   }
 
-  // Handle file upload and extraction
+  // Handle file upload and extraction (client-side)
   const handleFileUpload = async (file: File) => {
     // Validate file type
     if (file.type !== "application/pdf") {
@@ -181,24 +182,16 @@ export default function CreateLessonPage() {
     setIsExtracting(true)
 
     try {
-      const response = await extractPdfContent(file)
+      // Extract PDF content directly on the client side
+      const content = await extractTextFromPdfFile(file)
 
-      if (response.data?.content) {
-        form.setValue("content", response.data.content)
+      if (content && content.trim().length > 0) {
+        form.setValue("content", content)
         toast.success("PDF content extracted successfully", {
           description: "The content has been extracted. You can edit it before submitting.",
         })
-      } else if (response.error) {
-        const errorMsg = typeof response.error === 'string' 
-          ? response.error 
-          : response.error?.message || "Failed to extract content"
-        form.setError("root", {
-          message: errorMsg,
-        })
-        toast.error("Failed to extract content", {
-          description: errorMsg,
-        })
-        setSelectedFile(null)
+      } else {
+        throw new Error("PDF appears to be empty or contains no extractable text")
       }
     } catch (error: any) {
       console.error("Error extracting PDF content:", error)
