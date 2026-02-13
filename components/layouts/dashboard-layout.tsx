@@ -113,13 +113,13 @@ export function DashboardLayout({
         <div className="p-6 border-b border-[#65B32E]/20">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/logo.png"
+              src="/Seplat-logo.jpg"
               alt="LearningHub Logo"
               width={32}
               height={32}
               className="object-contain"
             />
-            <span className="font-semibold text-[#65B32E]">WokBook</span>
+            {/* <span className="font-semibold text-[#65B32E]">WokBook</span> */}
           </Link>
         </div>
 
