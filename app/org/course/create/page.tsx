@@ -1,12 +1,12 @@
 "use client"
 
-import React from "react"
+import React, { useState, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
-import { createCourse } from "@/lib/api-calls"
+import { createCourse, uploadImage } from "@/lib/api-calls"
 import { CreateCourseSchema } from "@/lib/validation-schema"
 import { getPrimaryOrganization } from "@/lib/session"
 import { z } from "zod"
@@ -28,9 +28,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { Upload, X, Loader2, Image as ImageIcon } from "lucide-react"
 
 export default function CreateCoursePage() {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   
   // Get primary organization from session
   const primaryOrganization = getPrimaryOrganization()
@@ -50,6 +54,8 @@ export default function CreateCoursePage() {
       thumbnail: "",
     },
   })
+
+  const thumbnailValue = form.watch("thumbnail")
 
   const createCourseMutation = useMutation({
     mutationFn: createCourse,
@@ -96,6 +102,85 @@ export default function CreateCoursePage() {
       })
     },
   })
+
+  // Handle image file selection and upload
+  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/svg+xml"]
+    if (!validImageTypes.includes(file.type)) {
+      toast.error("Invalid file type", {
+        description: "Please select an image file (JPEG, PNG, WebP, GIF, or SVG).",
+      })
+      return
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      toast.error("File too large", {
+        description: "Image size must be less than 10MB.",
+      })
+      return
+    }
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setThumbnailPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Upload image
+    setIsUploadingImage(true)
+    try {
+      const response = await uploadImage(file)
+      if (response.data) {
+        form.setValue("thumbnail", response.data.url)
+        toast.success("Image uploaded successfully", {
+          description: "Your thumbnail image has been uploaded.",
+        })
+      } else {
+        const errorMsg = response.error?.message || "Failed to upload image"
+        toast.error("Upload failed", {
+          description: errorMsg,
+        })
+        setThumbnailPreview(null)
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      toast.error("Upload failed", {
+        description: "An unexpected error occurred while uploading the image.",
+      })
+      setThumbnailPreview(null)
+    } finally {
+      setIsUploadingImage(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
+  // Handle remove image
+  const handleRemoveImage = () => {
+    form.setValue("thumbnail", "")
+    setThumbnailPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  // Update preview when thumbnail URL changes (e.g., from form reset)
+  useEffect(() => {
+    if (thumbnailValue && thumbnailValue.startsWith("http")) {
+      setThumbnailPreview(thumbnailValue)
+    } else if (!thumbnailValue) {
+      setThumbnailPreview(null)
+    }
+  }, [thumbnailValue])
 
   const onSubmit = (values: FormCourseValues) => {
     if (!organizationId) {
@@ -182,11 +267,79 @@ export default function CreateCoursePage() {
                   name="thumbnail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[#65B32E]">Thumbnail URL</FormLabel>
+                      <FormLabel className="text-[#65B32E]">Course Thumbnail</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://example.com/image.jpg" {...field} className="border-[#65B32E]/30 focus:border-[#65B32E]" />
+                        <div className="space-y-4">
+                          {/* Image Preview */}
+                          {thumbnailPreview && (
+                            <div className="relative inline-block">
+                              <div className="relative w-full max-w-xs h-48 border-2 border-[#65B32E]/20 rounded-lg overflow-hidden bg-muted">
+                                <img
+                                  src={thumbnailPreview}
+                                  alt="Course thumbnail preview"
+                                  className="w-full h-full object-cover"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={handleRemoveImage}
+                                  className="absolute top-2 right-2 bg-[#DE1915] hover:bg-[#DE1915]/90 text-white"
+                                  aria-label="Remove image"
+                                >
+                                  <X size={16} />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Upload Button */}
+                          {!thumbnailPreview && (
+                            <div className="flex flex-col items-center justify-center w-full">
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml"
+                                onChange={handleImageSelect}
+                                className="hidden"
+                                id="thumbnail-upload"
+                                disabled={isUploadingImage}
+                              />
+                              <label
+                                htmlFor="thumbnail-upload"
+                                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                                  isUploadingImage
+                                    ? "border-muted-foreground/50 bg-muted/50 cursor-not-allowed"
+                                    : "border-[#65B32E]/30 hover:border-[#65B32E] hover:bg-[#65B32E]/5"
+                                }`}
+                              >
+                                {isUploadingImage ? (
+                                  <>
+                                    <Loader2 className="w-8 h-8 text-[#65B32E] animate-spin mb-2" />
+                                    <p className="text-sm text-muted-foreground">Uploading...</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="w-8 h-8 text-[#65B32E] mb-2" />
+                                    <p className="text-sm text-[#65B32E] font-medium">
+                                      Click to upload thumbnail
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      PNG, JPG, WebP, GIF or SVG (max 10MB)
+                                    </p>
+                                  </>
+                                )}
+                              </label>
+                            </div>
+                          )}
+
+                          {/* Hidden input for form value */}
+                          <input type="hidden" {...field} />
+                        </div>
                       </FormControl>
-                      <FormDescription>Optional: Add a thumbnail image URL for your course</FormDescription>
+                      <FormDescription>
+                        Optional: Upload a thumbnail image for your course. Supported formats: JPEG, PNG, WebP, GIF, SVG (max 10MB)
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

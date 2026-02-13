@@ -12,6 +12,7 @@ import { getLesson, getCourseBySlug, type Lesson, type Quiz } from "@/lib/api-ca
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { TextToSpeech } from "@/components/text-to-speech"
 
 export default function ClassroomLessonView() {
   const params = useParams()
@@ -203,7 +204,12 @@ export default function ClassroomLessonView() {
           )}
 
           <Card className="border-[#65B32E]/20 bg-white">
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
+              {/* Text to Speech Controls */}
+              <div className="flex justify-end">
+                <TextToSpeech text={lesson.content} compact />
+              </div>
+              
               <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
                 {lesson.content.split("\n").map((line, i) => {
                   if (line.startsWith("# ")) {

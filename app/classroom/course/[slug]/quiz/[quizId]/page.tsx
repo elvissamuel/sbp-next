@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { TextToSpeech } from "@/components/text-to-speech"
 
 // Kahoot-style colors for options
 const OPTION_COLORS = [
@@ -422,9 +423,12 @@ export default function ClassroomQuizView() {
                 {currentQuestion && (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-[#65B32E] mb-4">
-                        {currentQuestion.question}
-                      </h2>
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <h2 className="text-2xl font-bold text-[#65B32E] flex-1">
+                          {currentQuestion.question}
+                        </h2>
+                        <TextToSpeech text={currentQuestion.question} compact />
+                      </div>
                     </div>
 
                     {/* Options - Kahoot style */}
