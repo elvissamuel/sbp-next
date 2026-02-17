@@ -26,6 +26,7 @@ import ReactSelect from "react-select"
 import type { StylesConfig, MultiValue } from "react-select"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { getUserFullName } from "@/lib/utils/user"
 
 export default function CourseManagementPage() {
   const router = useRouter()
@@ -79,7 +80,7 @@ export default function CourseManagementPage() {
   const memberOptions = useMemo(() => {
     return members.map((member: OrganizationMember) => ({
       value: member.userId,
-      label: `${member.name || "N/A"} (${member.email}) - ${member.role}`,
+      label: `${getUserFullName(member.firstName, member.lastName, member.name) || "N/A"} (${member.email}) - ${member.role}`,
       member: member,
     }))
   }, [members])

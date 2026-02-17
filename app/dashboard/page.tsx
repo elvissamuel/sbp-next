@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, PlayCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { getUserEnrollments, type EnrollmentWithCourse } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
+import { getUserFullName } from "@/lib/utils/user"
 
 export default function DashboardPage() {
   const currentUser = getCurrentUser()
@@ -58,7 +59,7 @@ export default function DashboardPage() {
       <div className="space-y-8 bg-white">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-[#65B32E]">Welcome back {currentUser?.name}</h1>
+          <h1 className="text-3xl font-bold text-[#65B32E]">Welcome back {getUserFullName(currentUser?.firstName, currentUser?.lastName, currentUser?.name)}</h1>
           <p className="text-muted-foreground">Continue your learning journey</p>
         </div>
 

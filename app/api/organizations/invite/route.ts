@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
             select: {
               id: true,
               email: true,
+              firstName: true,
+              lastName: true,
               name: true,
             },
           },
@@ -97,7 +99,11 @@ export async function POST(request: NextRequest) {
           member: {
             id: member.id,
             email: member.user.email,
-            name: member.user.name,
+            firstName: member.user.firstName,
+            lastName: member.user.lastName,
+            name: member.user.firstName && member.user.lastName 
+              ? `${member.user.firstName} ${member.user.lastName}` 
+              : member.user.name,
             role: member.role,
             organizationId: member.organizationId,
             organizationName: member.organization.name,

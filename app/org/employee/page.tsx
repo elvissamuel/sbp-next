@@ -28,6 +28,7 @@ import { inviteMember, getOrganizationMembers, getCourses, enrollStudent, type O
 import { getPrimaryOrganization } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { getUserFullName } from "@/lib/utils/user"
 
 export default function EmployeePage() {
   const queryClient = useQueryClient()
@@ -285,7 +286,7 @@ export default function EmployeePage() {
       } else {
         // All successful
         toast.success("Enrollment successful", {
-          description: `Successfully enrolled ${selectedMember?.name || selectedMember?.email || "student"} in ${successful.length} course(s).`,
+          description: `Successfully enrolled ${getUserFullName(selectedMember?.firstName, selectedMember?.lastName, selectedMember?.name) || selectedMember?.email || "student"} in ${successful.length} course(s).`,
         })
         setOpenEnroll(false)
         setSelectedMember(null)
@@ -378,7 +379,7 @@ export default function EmployeePage() {
               <DialogHeader>
                 <DialogTitle className="text-[#65B32E]">Enroll Student in Courses</DialogTitle>
                 <DialogDescription>
-                  Select courses to enroll {selectedMember?.name || selectedMember?.email || "this member"} into
+                  Select courses to enroll {getUserFullName(selectedMember?.firstName, selectedMember?.lastName, selectedMember?.name) || selectedMember?.email || "this member"} into
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleEnroll} className="space-y-4">
@@ -458,6 +459,8 @@ export default function EmployeePage() {
                 <TableRow className="border-[#65B32E]/20 hover:bg-transparent">
                   <TableHead className="text-[#65B32E]">Name</TableHead>
                   <TableHead className="text-[#65B32E]">Email</TableHead>
+                  <TableHead className="text-[#65B32E]">Job Title</TableHead>
+                  <TableHead className="text-[#65B32E]">Department</TableHead>
                   <TableHead className="text-[#65B32E]">Role</TableHead>
                   <TableHead className="text-[#65B32E]">Status</TableHead>
                   <TableHead className="w-8"></TableHead>
@@ -466,22 +469,26 @@ export default function EmployeePage() {
               <TableBody>
                 {membersLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#65B32E]" />
                       <p className="text-sm text-muted-foreground mt-2">Loading members...</p>
                     </TableCell>
                   </TableRow>
                 ) : employees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No members yet. Invite your first team member to get started.
                     </TableCell>
                   </TableRow>
                 ) : (
                   employees.map((employee: OrganizationMember) => (
                     <TableRow key={employee.id} className="border-[#65B32E]/20 hover:bg-[#65B32E]/5">
-                      <TableCell className="font-medium text-[#65B32E]">{employee.name || "N/A"}</TableCell>
+                      <TableCell className="font-medium text-[#65B32E]">
+                        {getUserFullName(employee.firstName, employee.lastName, employee.name)}
+                      </TableCell>
                       <TableCell>{employee.email}</TableCell>
+                      <TableCell>{employee.jobTitle || "N/A"}</TableCell>
+                      <TableCell>{employee.department || "N/A"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="uppercase border-[#65B32E]/30">{employee.role}</Badge>
                       </TableCell>

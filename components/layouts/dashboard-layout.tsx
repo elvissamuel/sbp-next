@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { getUserFullName, getUserInitials } from "@/lib/utils/user"
 
 type NavItem = {
   label: string
@@ -32,6 +33,8 @@ const allNavItems: NavItem[] = [
   { label: "Courses", href: "/org/course", adminOnly: false, memberHref: "/course", exactMatch: false },
   { label: "Employees", href: "/org/employee", adminOnly: true, exactMatch: false },
   { label: "Groups", href: "/org/groups", adminOnly: true, exactMatch: false },
+  { label: "Departments", href: "/org/departments", adminOnly: true, exactMatch: false },
+  { label: "Levels", href: "/org/levels", adminOnly: true, exactMatch: false },
   { label: "Settings", href: "/settings/org", adminOnly: true, exactMatch: false },
 ]
 
@@ -47,7 +50,7 @@ export function DashboardLayout({
   const currentUser = getCurrentUser()
   const user = currentUser || null
   const displayEmail = userEmail || user?.email || "user@example.com"
-  const userName = user?.name || null
+  const userFullName = getUserFullName(user?.firstName, user?.lastName, user?.name)
 
   // Get user's role from primary organization
   const primaryOrg = getPrimaryOrganization()
@@ -66,19 +69,7 @@ export function DashboardLayout({
     })
 
   // Calculate user initials
-  const getUserInitials = () => {
-    if (userName) {
-      const nameParts = userName.trim().split(/\s+/)
-      if (nameParts.length >= 2) {
-        return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-      }
-      return userName.substring(0, 2).toUpperCase()
-    }
-    // Fallback to email first letter
-    return displayEmail.charAt(0).toUpperCase()
-  }
-
-  const userInitials = getUserInitials()
+  const userInitials = getUserInitials(user?.firstName, user?.lastName, displayEmail, user?.name)
 
   const handleLogout = () => {
     clearSession()

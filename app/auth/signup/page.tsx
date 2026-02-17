@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { JOB_TITLES, DEPARTMENTS } from "@/lib/constants"
 
 function SignUpForm() {
   const router = useRouter()
@@ -20,7 +22,10 @@ function SignUpForm() {
   const isInvite = searchParams.get("invite") === "true"
   
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
+    jobTitle: "",
+    department: "",
     email: emailFromUrl || "",
     password: "",
     confirmPassword: "",
@@ -42,6 +47,10 @@ function SignUpForm() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -60,11 +69,32 @@ function SignUpForm() {
     }
 
     try {
+      // Validate required fields
+      if (!formData.firstName || !formData.lastName) {
+        setError("First name and last name are required")
+        setLoading(false)
+        return
+      }
+
+      // For invite flow, validate additional fields
+      if (isInvite && (!formData.jobTitle || !formData.department)) {
+        setError("Job title and department are required")
+        setLoading(false)
+        return
+      }
+
       // Prepare signup data based on flow
       const signupData: any = {
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
+      }
+
+      // Add additional fields for invite flow
+      if (isInvite) {
+        signupData.jobTitle = formData.jobTitle
+        signupData.department = formData.department
       }
 
       if (isInvite) {
@@ -150,18 +180,75 @@ function SignUpForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="name"
-                name="name"
+                id="firstName"
+                name="firstName"
                 type="text"
-                placeholder="John Doe"
-                value={formData.name}
+                placeholder="John"
+                value={formData.firstName}
                 onChange={handleChange}
                 required
                 disabled={loading}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                name="lastName"
+                type="text"
+                placeholder="Doe"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+            </div>
+            {isInvite && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="jobTitle">Job Title</Label>
+                  <Select
+                    value={formData.jobTitle}
+                    onValueChange={(value) => handleSelectChange("jobTitle", value)}
+                    required
+                    disabled={loading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your job title" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JOB_TITLES.map((title) => (
+                        <SelectItem key={title} value={title}>
+                          {title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) => handleSelectChange("department", value)}
+                    required
+                    disabled={loading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

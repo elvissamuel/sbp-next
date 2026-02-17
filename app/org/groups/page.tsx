@@ -19,6 +19,7 @@ import { getGroups, createGroup, getOrganizationMembers, getCourses, enrollGroup
 import { getPrimaryOrganization } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { getUserFullName } from "@/lib/utils/user"
 
 export default function GroupsPage() {
   const queryClient = useQueryClient()
@@ -64,7 +65,7 @@ export default function GroupsPage() {
   const memberOptions = useMemo(() => {
     return members.map((member: OrganizationMember) => ({
       value: member.userId,
-      label: `${member.name || member.email} (${member.role})`,
+      label: `${getUserFullName(member.firstName, member.lastName, member.name) || member.email} (${member.role})`,
       member: member,
     }))
   }, [members])
