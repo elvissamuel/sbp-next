@@ -9,11 +9,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
 import { Separator } from "@/components/ui/separator"
+import { getCurrentUser } from "@/lib/session"
+import { getUserFullName } from "@/lib/utils/user"
 
 export default function ProfilePage() {
+  const currentUser = getCurrentUser()
   const [formData, setFormData] = useState({
-    name: "John Doe",
-    email: "john@example.com",
+    firstName: currentUser?.firstName || "",
+    lastName: currentUser?.lastName || "",
+    email: currentUser?.email || "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -65,13 +69,23 @@ export default function ProfilePage() {
           <CardContent>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="firstName"
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleChange}
-                  placeholder="Enter your full name"
+                  placeholder="Enter your first name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Enter your last name"
                 />
               </div>
 

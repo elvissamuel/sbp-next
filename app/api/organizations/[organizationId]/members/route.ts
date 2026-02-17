@@ -22,7 +22,11 @@ export async function GET(
           select: {
             id: true,
             email: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            jobTitle: true,
+            department: true,
+            name: true, // Keep for backward compatibility
           },
         },
       },
@@ -34,7 +38,13 @@ export async function GET(
       id: member.id,
       userId: member.userId,
       email: member.user.email,
-      name: member.user.name,
+      firstName: member.user.firstName,
+      lastName: member.user.lastName,
+      jobTitle: member.user.jobTitle,
+      department: member.user.department,
+      name: member.user.firstName && member.user.lastName 
+        ? `${member.user.firstName} ${member.user.lastName}` 
+        : member.user.name, // Keep for backward compatibility
       role: member.role,
       joinedAt: member.joinedAt,
     }))

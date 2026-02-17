@@ -8,11 +8,18 @@ import { v4 as uuidv4 } from "uuid"
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, organizationName, organizationId, role } = await request.json()
+    const { email, password, firstName, lastName, jobTitle, department, organizationName, organizationId, role } = await request.json()
 
     // Validate required fields
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!email || !password || !firstName || !lastName) {
+      return NextResponse.json({ error: "Missing required fields: email, password, firstName, and lastName are required" }, { status: 400 })
+    }
+
+    // For invite flow, validate additional fields
+    if (organizationId && !organizationName) {
+      if (!jobTitle || !department) {
+        return NextResponse.json({ error: "Missing required fields: jobTitle and department are required for invite flow" }, { status: 400 })
+      }
     }
 
     // Check if this is an invite flow (has organizationId) or new org flow (has organizationName)
@@ -45,7 +52,11 @@ export async function POST(request: NextRequest) {
         data: {
           email,
           password: hashedPassword,
-          name,
+          firstName,
+          lastName,
+          name: `${firstName} ${lastName}`, // Keep name for backward compatibility
+          jobTitle: jobTitle || null,
+          department: department || null,
         },
       })
 
@@ -138,7 +149,9 @@ export async function POST(request: NextRequest) {
     try {
       await sendVerificationEmail({
         email: result.user.email!,
-        name: result.user.name,
+        name: result.user.firstName && result.user.lastName 
+          ? `${result.user.firstName} ${result.user.lastName}` 
+          : result.user.name || result.user.email,
         verificationLink,
       })
       console.log(`[SIGNUP SUCCESS] Verification email sent successfully to ${result.user.email}`)
@@ -182,7 +195,11 @@ export async function POST(request: NextRequest) {
         user: {
           id: result.user.id,
           email: result.user.email,
-          name: result.user.name,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          name: result.user.firstName && result.user.lastName 
+            ? `${result.user.firstName} ${result.user.lastName}` 
+            : result.user.name,
         },
         message: "Account created. Please verify your email.",
       },

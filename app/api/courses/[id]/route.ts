@@ -23,6 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                 user: {
                   select: {
                     id: true,
+                    firstName: true,
+                    lastName: true,
                     name: true,
                     email: true,
                     image: true,
@@ -37,6 +39,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             user: {
               select: {
                 id: true,
+                firstName: true,
+                lastName: true,
                 name: true,
                 email: true,
                 image: true,

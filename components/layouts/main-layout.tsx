@@ -15,11 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { getCurrentUser, clearSession } from "@/lib/session"
 import { toast } from "sonner"
+import { getUserFullName, getUserInitials } from "@/lib/utils/user"
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [user, setUser] = useState<{ id: string; email: string; name: string | null } | null>(null)
+  const [user, setUser] = useState<{ id: string; email: string; firstName: string | null; lastName: string | null; name: string | null } | null>(null)
 
   const handleLogout = () => {
     clearSession()
@@ -81,13 +82,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                       type="button"
                       className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                     >
-                      {user.email.charAt(0).toUpperCase()}
+                      {getUserInitials(user.firstName, user.lastName, user.email, user.name)}
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <div className="px-2 py-1.5">
                       <p className="text-sm font-medium text-foreground">
-                        {user.name || "User"}
+                        {getUserFullName(user.firstName, user.lastName, user.name)}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {user.email}

@@ -271,7 +271,9 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     updatedAt: Date;
     user: {
       id: string;
-      name: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      name: string | null; // Computed from firstName + lastName, kept for backward compatibility
       email: string;
       image: string | null;
     };
@@ -406,7 +408,11 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     id: string;
     userId: string;
     email: string;
-    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    jobTitle: string | null;
+    department: string | null;
+    name: string | null; // Computed from firstName + lastName, kept for backward compatibility
     role: string;
     joinedAt: Date;
   };
@@ -497,5 +503,69 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ courseId }),
+    }));
+  };
+
+  // Department types
+  export type Department = {
+    id: string;
+    name: string;
+    description?: string | null;
+    memberCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
+  export const getDepartments = async (organizationId: string): Promise<IApiResponse<Department[]>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/departments?organizationId=${organizationId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const createDepartment = async (data: {
+    organizationId: string;
+    name: string;
+    description?: string;
+  }): Promise<IApiResponse<Department>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/departments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+  };
+
+  // Level types
+  export type Level = {
+    id: string;
+    name: string;
+    levelNumber: number;
+    description?: string | null;
+    memberCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
+  export const getLevels = async (organizationId: string): Promise<IApiResponse<Level[]>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/levels?organizationId=${organizationId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const createLevel = async (data: {
+    organizationId: string;
+    name: string;
+    levelNumber: number;
+    description?: string;
+  }): Promise<IApiResponse<Level>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/levels`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     }));
   };

@@ -14,6 +14,7 @@ import { format } from "date-fns"
 import { getCourse, deleteLesson, updateLessonStatus, updateQuizStatus, type Lesson, type Quiz, type EnrollmentWithUser } from "@/lib/api-calls"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getUserFullName, getUserInitials } from "@/lib/utils/user"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   AlertDialog,
@@ -399,19 +400,27 @@ export default function ViewCoursePage() {
                     </TableHeader>
                     <TableBody>
                       {enrollments.map((enrollment: EnrollmentWithUser) => {
-                        const initials = enrollment.user.name
-                          ? enrollment.user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
-                          : enrollment.user.email[0].toUpperCase()
+                        const userFullName = getUserFullName(
+                          enrollment.user.firstName,
+                          enrollment.user.lastName,
+                          enrollment.user.name
+                        )
+                        const initials = getUserInitials(
+                          enrollment.user.firstName,
+                          enrollment.user.lastName,
+                          enrollment.user.email,
+                          enrollment.user.name
+                        )
                         
                         return (
                           <TableRow key={enrollment.id} className="border-border/40">
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
-                                  <AvatarImage src={enrollment.user.image || undefined} alt={enrollment.user.name || enrollment.user.email} />
+                                  <AvatarImage src={enrollment.user.image || undefined} alt={userFullName || enrollment.user.email} />
                                   <AvatarFallback>{initials}</AvatarFallback>
                                 </Avatar>
-                                <span className="font-medium">{enrollment.user.name || enrollment.user.email}</span>
+                                <span className="font-medium">{userFullName || enrollment.user.email}</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">{enrollment.user.email}</TableCell>

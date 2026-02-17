@@ -7,7 +7,9 @@ export interface UserSession {
   user: {
     id: string;
     email: string;
-    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    name: string | null; // Computed from firstName + lastName, kept for backward compatibility
   };
   organizations: Array<{
     id: string;

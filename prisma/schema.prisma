@@ -27,8 +27,48 @@ model Organization {
   subscriptions Subscription[]
   apiKeys   ApiKey[]
   groups    Group[]
+  departments Department[]
+  levels    Level[]
 
   @@index([slug])
+}
+
+// Departments - Organization departments
+model Department {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  members        OrganizationMember[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+// Levels - Organizational hierarchy levels (e.g., Level 1, Level 2, etc.)
+// Lower level numbers = higher hierarchy (Level 1 > Level 2 > Level 3)
+model Level {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String   // e.g., "Executive", "Manager", "Senior", "Junior"
+  levelNumber    Int      // Numeric level for hierarchy comparison (1 = highest, higher numbers = lower)
+  description    String?  @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  members        OrganizationMember[]
+
+  @@unique([organizationId, levelNumber])
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([organizationId, levelNumber])
 }
 
 // Organization Members - Role-based access
@@ -39,11 +79,23 @@ model OrganizationMember {
   userId          String
   user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role            String   @default("member") // admin, instructor, member
+  departmentId   String?  // Department assignment
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  levelId         String?  // Level/hierarchy assignment
+  level           Level? @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  managerId       String?  // Direct manager (self-referential)
+  manager         OrganizationMember? @relation("MemberManagers", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports   OrganizationMember[] @relation("MemberManagers")
+  jobTitle        String?  // Job title (can be different from level name)
   joinedAt        DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([organizationId, userId])
   @@index([organizationId])
   @@index([userId])
+  @@index([departmentId])
+  @@index([levelId])
+  @@index([managerId])
 }
 
 // Users
@@ -51,6 +103,10 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   name          String?
+  firstName     String?
+  lastName      String?
+  jobTitle      String?
+  department    String?
   image         String?
   password      String?
   emailVerified DateTime?
@@ -66,6 +122,7 @@ model User {
   emailVerification EmailVerification?
 
   @@index([email])
+  // Note: department field kept for backward compatibility but should use OrganizationMember.departmentId
 }
 
 // Email Verification

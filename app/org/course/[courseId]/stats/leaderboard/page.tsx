@@ -13,6 +13,7 @@ import { Download, Loader2 } from "lucide-react"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getCourse, type EnrollmentWithUser, type Quiz } from "@/lib/api-calls"
 import { useMemo } from "react"
+import { getUserFullName, getUserInitials } from "@/lib/utils/user"
 
 interface LeaderboardEntry {
   rank: number
@@ -76,7 +77,7 @@ export default function LeaderboardPage() {
       return {
         rank: 0, // Will be calculated after sorting
         userId: enrollment.userId,
-        name: enrollment.user.name || enrollment.user.email,
+        name: getUserFullName(enrollment.user.firstName, enrollment.user.lastName, enrollment.user.name) || enrollment.user.email,
         email: enrollment.user.email,
         image: enrollment.user.image,
         progress: enrollment.progress,
@@ -138,6 +139,7 @@ export default function LeaderboardPage() {
   }
 
   const getInitials = (name: string, email: string) => {
+    // This function is kept for backward compatibility but should use getUserInitials from utils
     if (name) {
       return name
         .split(" ")
