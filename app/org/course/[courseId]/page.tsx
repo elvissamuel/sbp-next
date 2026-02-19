@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useParams, useRouter } from "next/navigation"
-import { Plus, Settings, BarChart3, Loader2, FileText, HelpCircle, Edit, Trash2, ChevronDown } from "lucide-react"
+import { Plus, Settings, BarChart3, Loader2, FileText, HelpCircle, Edit, Trash2, ChevronDown, MoreHorizontal } from "lucide-react"
 import { format } from "date-fns"
 import { getCourse, deleteLesson, updateLessonStatus, updateQuizStatus, type Lesson, type Quiz, type EnrollmentWithUser } from "@/lib/api-calls"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import { useState } from "react"
+import { EditLessonDialog } from "@/components/lesson/edit-lesson-dialog"
+import { DeleteLessonDialog } from "@/components/lesson/delete-lesson-dialog"
 
 
 export default function ViewCoursePage() {
@@ -46,6 +48,10 @@ export default function ViewCoursePage() {
   // State for confirmation dialogs
   const [pendingLessonAction, setPendingLessonAction] = useState<{ id: string; status: string; title: string } | null>(null)
   const [pendingQuizAction, setPendingQuizAction] = useState<{ id: string; status: string; title: string } | null>(null)
+  
+  // State for edit/delete lesson dialogs
+  const [editingLesson, setEditingLesson] = useState<{ id: string } | null>(null)
+  const [deletingLesson, setDeletingLesson] = useState<{ id: string; title: string } | null>(null)
 
   // Fetch course with lessons and quizzes
   const { data: courseResponse, isLoading, error } = useQuery({
@@ -257,7 +263,7 @@ export default function ViewCoursePage() {
                         <TableHead>Title</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Created</TableHead>
-                        <TableHead className="w-8"></TableHead>
+                        <TableHead className="w-8">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -305,11 +311,31 @@ export default function ViewCoursePage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {format(new Date(lesson.createdAt), "MMM d, yyyy")}
                           </TableCell>
-                          {/* <TableCell>
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/org/course/${courseId}/lesson/${lesson.id}`}>View</Link>
-                            </Button>
-                          </TableCell> */}
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 hover:bg-[#65B32E]/10">
+                                  <MoreHorizontal size={16} className="text-[#65B32E]" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-white border-[#65B32E]/20">
+                                <DropdownMenuItem
+                                  onClick={() => setEditingLesson({ id: lesson.id })}
+                                  className="hover:bg-[#65B32E]/10 text-[#65B32E]"
+                                >
+                                  <Edit size={16} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setDeletingLesson({ id: lesson.id, title: lesson.title })}
+                                  className="text-[#DE1915] hover:bg-[#DE1915]/10"
+                                >
+                                  <Trash2 size={16} className="mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                         </TableRow>
                       ))}
                       {quizzes.map((quiz: Quiz) => (
@@ -504,6 +530,27 @@ export default function ViewCoursePage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit Lesson Dialog */}
+        {editingLesson && (
+          <EditLessonDialog
+            open={!!editingLesson}
+            onOpenChange={(open) => !open && setEditingLesson(null)}
+            lessonId={editingLesson.id}
+            courseId={courseId}
+          />
+        )}
+
+        {/* Delete Lesson Dialog */}
+        {deletingLesson && (
+          <DeleteLessonDialog
+            open={!!deletingLesson}
+            onOpenChange={(open) => !open && setDeletingLesson(null)}
+            lessonId={deletingLesson.id}
+            lessonTitle={deletingLesson.title}
+            courseId={courseId}
+          />
+        )}
       </div>
     </DashboardLayout>
   )

@@ -9,7 +9,7 @@ import { useState, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Mail, Trash2, Loader2, UserPlus } from "lucide-react"
+import { MoreHorizontal, Mail, Trash2, Loader2, UserPlus, Upload, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ReactSelect from "react-select"
 import type { StylesConfig, MultiValue } from "react-select"
@@ -36,9 +37,12 @@ export default function EmployeePage() {
   const [openEnroll, setOpenEnroll] = useState(false)
   const [selectedMember, setSelectedMember] = useState<OrganizationMember | null>(null)
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
-  const [inviteData, setInviteData] = useState({ email: "", role: "member" as "admin" | "member" | "instructor" })
+  const [inviteData, setInviteData] = useState({ emails: "", role: "member" as "admin" | "member" | "instructor" })
   const [error, setError] = useState<string | null>(null)
   const [enrollError, setEnrollError] = useState<string | null>(null)
+  const [inviteResults, setInviteResults] = useState<Array<{ email: string; status: "success" | "error"; message: string }>>([])
+  const [isParsingCsv, setIsParsingCsv] = useState(false)
+  const [csvFileName, setCsvFileName] = useState<string | null>(null)
 
   const primaryOrganization = getPrimaryOrganization()
   const organizationId = primaryOrganization?.id || ""
@@ -137,46 +141,258 @@ export default function EmployeePage() {
     }),
   }), [])
 
-  // Invite member mutation
-  const inviteMemberMutation = useMutation({
-    mutationFn: inviteMember,
-    onSuccess: (response) => {
-      if (response.data) {
-        // Reset form and close dialog
-        setInviteData({ email: "", role: "member" })
-        setOpenInvite(false)
-        setError(null)
-        // Invalidate queries to refetch members list
+  // Parse emails from text input (supports comma, semicolon, or newline separated)
+  const parseEmails = (text: string): string[] => {
+    return text
+      .split(/[,;\n]/)
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0)
+  }
+
+  // Validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  // Parse CSV file and extract emails
+  const parseCsvFile = async (file: File): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string
+          if (!text) {
+            reject(new Error("File is empty"))
+            return
+          }
+
+          // Split by newlines
+          const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+
+          if (lines.length === 0) {
+            reject(new Error("CSV file is empty"))
+            return
+          }
+
+          const emails: string[] = []
+
+          // Check if first line is a header (contains "email" or "Email")
+          const firstLine = lines[0].toLowerCase()
+          const hasHeader = firstLine.includes("email")
+
+          // Start from line 1 if header exists, otherwise from line 0
+          const startIndex = hasHeader ? 1 : 0
+
+          for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i].trim()
+            if (!line) continue
+
+            // Parse CSV line (handle quoted values and commas)
+            const values = line.split(",").map((val) => val.trim().replace(/^"|"$/g, ""))
+
+            // Try to find email in the line
+            // First, check if any value is an email
+            for (const value of values) {
+              if (isValidEmail(value)) {
+                emails.push(value)
+                break // Only take first email per line
+              }
+            }
+
+            // If no email found in values, try the whole line as email
+            if (values.length === 1 && isValidEmail(values[0])) {
+              emails.push(values[0])
+            }
+          }
+
+          if (emails.length === 0) {
+            reject(new Error("No valid email addresses found in CSV file"))
+            return
+          }
+
+          resolve(emails)
+        } catch (error: any) {
+          reject(new Error(`Failed to parse CSV: ${error?.message || "Unknown error"}`))
+        }
+      }
+
+      reader.onerror = () => {
+        reject(new Error("Failed to read file"))
+      }
+
+      reader.readAsText(file)
+    })
+  }
+
+  // Handle CSV file upload
+  const handleCsvUpload = async (file: File) => {
+    // Validate file type
+    const validTypes = [
+      "text/csv",
+      "application/vnd.ms-excel",
+      "text/plain",
+      "application/csv",
+    ]
+    const isValidType =
+      validTypes.includes(file.type) ||
+      file.name.endsWith(".csv") ||
+      file.name.endsWith(".txt")
+
+    if (!isValidType) {
+      toast.error("Invalid file type", {
+        description: "Please upload a CSV or TXT file.",
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      toast.error("File too large", {
+        description: "File size exceeds maximum limit of 5MB",
+      })
+      return
+    }
+
+    setIsParsingCsv(true)
+    setCsvFileName(file.name)
+
+    try {
+      const emails = await parseCsvFile(file)
+
+      if (emails.length === 0) {
+        throw new Error("No valid email addresses found in CSV file")
+      }
+
+      // Remove duplicates
+      const uniqueEmails = [...new Set(emails)]
+
+      // Add emails to the textarea (append if there are existing emails)
+      const existingEmails = parseEmails(inviteData.emails)
+      const allEmails = [...new Set([...existingEmails, ...uniqueEmails])]
+
+      setInviteData((prev) => ({
+        ...prev,
+        emails: allEmails.join(", "),
+      }))
+
+      toast.success("CSV file processed successfully", {
+        description: `Found ${uniqueEmails.length} unique email${uniqueEmails.length !== 1 ? "s" : ""} in the file.`,
+      })
+    } catch (error: any) {
+      console.error("Error parsing CSV:", error)
+      const errorMessage =
+        typeof error?.message === "string"
+          ? error.message
+          : "Failed to parse CSV file. Please try again."
+      setError(errorMessage)
+      toast.error("Failed to parse CSV file", {
+        description: errorMessage,
+      })
+      setCsvFileName(null)
+    } finally {
+      setIsParsingCsv(false)
+    }
+  }
+
+  const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleCsvUpload(file)
+    }
+    // Reset input so same file can be selected again
+    e.target.value = ""
+  }
+
+  // Invite multiple members
+  const inviteMembersMutation = useMutation({
+    mutationFn: async (emails: string[]) => {
+      const results = await Promise.allSettled(
+        emails.map((email) =>
+          inviteMember({
+            organizationId,
+            email,
+            role: inviteData.role.toLowerCase() as "admin" | "member" | "instructor",
+          })
+        )
+      )
+
+      return results.map((result, index) => {
+        if (result.status === "fulfilled") {
+          const response = result.value
+          if (response.data) {
+            return { email: emails[index], status: "success" as const, message: "Invitation sent successfully" }
+          } else if (response.error) {
+            const errorMsg =
+              typeof response.error === "string"
+                ? response.error
+                : response.error?.message || "Failed to invite member"
+            return { email: emails[index], status: "error" as const, message: errorMsg }
+          } else if (response.validationErrors) {
+            const firstError = response.validationErrors[0]
+            return {
+              email: emails[index],
+              status: "error" as const,
+              message: firstError?.message || "Validation error",
+            }
+          }
+          return { email: emails[index], status: "error" as const, message: "Unknown error" }
+        } else {
+          return {
+            email: emails[index],
+            status: "error" as const,
+            message: result.reason?.message || "Failed to invite member",
+          }
+        }
+      })
+    },
+    onSuccess: (results) => {
+      setInviteResults(results)
+      const successCount = results.filter((r) => r.status === "success").length
+      const errorCount = results.filter((r) => r.status === "error").length
+
+      // Invalidate queries to refetch members list if any succeeded
+      if (successCount > 0) {
         queryClient.invalidateQueries({ queryKey: ["organization-members", organizationId] })
-        toast.success("Invitation sent successfully", {
-          description: `An invitation has been sent to ${inviteData.email}.`,
+      }
+
+      if (successCount === results.length) {
+        // All succeeded
+        toast.success("All invitations sent successfully", {
+          description: `Successfully sent ${successCount} invitation${successCount !== 1 ? "s" : ""}.`,
         })
-      } else if (response.error) {
-        const errorMsg = typeof response.error === 'string' 
-          ? response.error 
-          : response.error?.message || "Failed to invite member"
-        setError(errorMsg)
-        toast.error("Failed to invite member", {
-          description: errorMsg,
+        // Reset form and close dialog after a short delay
+        setTimeout(() => {
+          setInviteData({ emails: "", role: "member" })
+          setOpenInvite(false)
+          setError(null)
+          setInviteResults([])
+          setCsvFileName(null)
+        }, 2000)
+      } else if (successCount > 0) {
+        // Partial success
+        toast.success("Some invitations sent", {
+          description: `Successfully sent ${successCount} invitation${successCount !== 1 ? "s" : ""}. ${errorCount} failed.`,
         })
-      } else if (response.validationErrors) {
-        const firstError = response.validationErrors[0]
-        const errorMsg = firstError?.message || "Validation error"
-        setError(errorMsg)
-        toast.error("Validation error", {
-          description: errorMsg,
+      } else {
+        // All failed
+        toast.error("Failed to send invitations", {
+          description: `Failed to send ${errorCount} invitation${errorCount !== 1 ? "s" : ""}.`,
         })
       }
     },
     onError: (error: any) => {
-      console.error("Error inviting member:", error)
-      const errorMessage = typeof error?.message === 'string' 
-        ? error.message 
-        : typeof error?.error === 'string'
-        ? error.error
-        : "Failed to invite member. Please try again."
+      console.error("Error inviting members:", error)
+      const errorMessage =
+        typeof error?.message === "string"
+          ? error.message
+          : typeof error?.error === "string"
+          ? error.error
+          : "Failed to invite members. Please try again."
       setError(errorMessage)
-      toast.error("Failed to invite member", {
+      toast.error("Failed to invite members", {
         description: errorMessage,
       })
     },
@@ -185,20 +401,33 @@ export default function EmployeePage() {
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setInviteResults([])
 
     if (!organizationId) {
       setError("Organization ID is required")
       return
     }
 
-    // Map UI role to API role (UI uses uppercase, API uses lowercase)
-    const apiRole = inviteData.role.toLowerCase() as "admin" | "member" | "instructor"
+    // Parse emails from input
+    const emails = parseEmails(inviteData.emails)
 
-    inviteMemberMutation.mutate({
-      organizationId,
-      email: inviteData.email,
-      role: apiRole,
-    })
+    if (emails.length === 0) {
+      setError("Please enter at least one email address")
+      return
+    }
+
+    // Validate all emails
+    const invalidEmails = emails.filter((email) => !isValidEmail(email))
+    if (invalidEmails.length > 0) {
+      setError(`Invalid email address${invalidEmails.length !== 1 ? "es" : ""}: ${invalidEmails.join(", ")}`)
+      return
+    }
+
+    // Remove duplicates
+    const uniqueEmails = [...new Set(emails)]
+
+    // Send invitations
+    inviteMembersMutation.mutate(uniqueEmails)
   }
 
   // Enroll student mutation
@@ -313,7 +542,19 @@ export default function EmployeePage() {
             <h1 className="text-3xl font-bold text-[#65B32E]">Team Members</h1>
             <p className="text-muted-foreground">Manage your team and assign roles</p>
           </div>
-          <Dialog open={openInvite} onOpenChange={setOpenInvite}>
+          <Dialog
+            open={openInvite}
+            onOpenChange={(open) => {
+              setOpenInvite(open)
+              if (!open) {
+                // Reset form when dialog closes
+                setInviteData({ emails: "", role: "member" })
+                setError(null)
+                setInviteResults([])
+                setCsvFileName(null)
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
                 <Mail size={16} className="mr-2" />
@@ -327,16 +568,70 @@ export default function EmployeePage() {
               </DialogHeader>
               <form onSubmit={handleInvite} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[#65B32E]">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="colleague@example.com"
-                    value={inviteData.email}
-                    onChange={(e) => setInviteData((prev) => ({ ...prev, email: e.target.value }))}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="emails" className="text-[#65B32E]">
+                      Email Addresses
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="csv-upload"
+                        className="cursor-pointer text-sm text-[#65B32E] hover:text-[#65B32E]/80 flex items-center gap-1"
+                      >
+                        <Upload size={14} />
+                        Upload CSV
+                      </Label>
+                      <Input
+                        id="csv-upload"
+                        type="file"
+                        accept=".csv,.txt,text/csv,text/plain"
+                        onChange={handleCsvFileChange}
+                        disabled={isParsingCsv || inviteMembersMutation.isPending}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                  <Textarea
+                    id="emails"
+                    placeholder="colleague1@example.com, colleague2@example.com&#10;colleague3@example.com"
+                    value={inviteData.emails}
+                    onChange={(e) => setInviteData((prev) => ({ ...prev, emails: e.target.value }))}
                     required
-                    className="border-[#65B32E]/30 focus:border-[#65B32E]"
+                    rows={5}
+                    className="border-[#65B32E]/30 focus:border-[#65B32E] font-mono text-sm"
+                    disabled={isParsingCsv || inviteMembersMutation.isPending}
                   />
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        Enter multiple email addresses separated by commas, semicolons, or new lines. Duplicate emails will be automatically removed.
+                      </p>
+                      {csvFileName && (
+                        <div className="flex items-center gap-1 text-xs text-[#65B32E] bg-[#65B32E]/10 px-2 py-1 rounded">
+                          <FileText size={12} />
+                          <span className="max-w-[120px] truncate">{csvFileName}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 bg-[#65B32E]/5 border border-[#65B32E]/20 rounded-md">
+                      <p className="text-xs font-medium text-[#65B32E] mb-1">CSV File Format:</p>
+                      <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                        <li>CSV file should contain email addresses in a column (with or without header)</li>
+                        <li>If header exists, it should contain "email" or "Email"</li>
+                        <li>One email per row, or comma-separated values</li>
+                        <li>Maximum file size: 5MB</li>
+                        <li>Supported formats: .csv, .txt</li>
+                      </ul>
+                      <p className="text-xs text-muted-foreground mt-2 italic">
+                        Example: <code className="bg-white/50 px-1 rounded">email@example.com</code> or <code className="bg-white/50 px-1 rounded">Email,Name</code> (with header)
+                      </p>
+                    </div>
+                  </div>
+                  {isParsingCsv && (
+                    <div className="flex items-center gap-2 text-sm text-[#65B32E]">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Parsing CSV file...</span>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role" className="text-[#65B32E]">Role</Label>
@@ -359,14 +654,49 @@ export default function EmployeePage() {
                     <p className="text-sm text-[#DE1915]">{error}</p>
                   </div>
                 )}
-                <Button type="submit" className="w-full bg-[#65B32E] hover:bg-[#65B32E]/90 text-white" disabled={inviteMemberMutation.isPending || !organizationId}>
-                  {inviteMemberMutation.isPending ? (
+
+                {/* Show invitation results */}
+                {inviteResults.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <Label className="text-[#65B32E]">Invitation Results</Label>
+                    <div className="space-y-1">
+                      {inviteResults.map((result, index) => (
+                        <div
+                          key={index}
+                          className={`p-2 rounded-md text-sm ${
+                            result.status === "success"
+                              ? "bg-[#65B32E]/10 border border-[#65B32E]/20 text-[#65B32E]"
+                              : "bg-[#DE1915]/10 border border-[#DE1915]/20 text-[#DE1915]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{result.email}</span>
+                            <span className="text-xs">{result.status === "success" ? "✓" : "✗"}</span>
+                          </div>
+                          <p className="text-xs mt-1 opacity-80">{result.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                  disabled={inviteMembersMutation.isPending || !organizationId || !inviteData.emails.trim()}
+                >
+                  {inviteMembersMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Sending Invite...
+                      Sending Invitations...
                     </>
                   ) : (
-                    "Send Invite"
+                    (() => {
+                      const emails = parseEmails(inviteData.emails)
+                      const uniqueEmails = [...new Set(emails)]
+                      const count = uniqueEmails.length
+                      return count > 0 ? `Send ${count} Invitation${count !== 1 ? "s" : ""}` : "Send Invitation"
+                    })()
                   )}
                 </Button>
               </form>
