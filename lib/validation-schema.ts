@@ -72,4 +72,5 @@ export const InviteMemberSchema = z.object({
   organizationId: z.string().min(1, "Organization ID is required"),
   email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "member", "instructor"]).default("member"),
+  requesterUserId: z.string().optional(), // User ID of the person making the invite (for permission checks)
 })

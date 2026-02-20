@@ -26,7 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ReactSelect from "react-select"
 import type { StylesConfig, MultiValue } from "react-select"
 import { inviteMember, getOrganizationMembers, getCourses, enrollStudent, type OrganizationMember, type CourseWithRelations } from "@/lib/api-calls"
-import { getPrimaryOrganization } from "@/lib/session"
+import { getPrimaryOrganization, getCurrentUser } from "@/lib/session"
+import { isSuperAdmin } from "@/lib/permissions"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getUserFullName } from "@/lib/utils/user"
@@ -46,6 +47,8 @@ export default function EmployeePage() {
 
   const primaryOrganization = getPrimaryOrganization()
   const organizationId = primaryOrganization?.id || ""
+  const userRole = primaryOrganization?.role || "member"
+  const canAssignAdmin = isSuperAdmin(userRole)
 
   // Fetch organization members
   const { data: membersResponse, isLoading: membersLoading } = useQuery({
@@ -309,12 +312,14 @@ export default function EmployeePage() {
   // Invite multiple members
   const inviteMembersMutation = useMutation({
     mutationFn: async (emails: string[]) => {
+      const currentUser = getCurrentUser()
       const results = await Promise.allSettled(
         emails.map((email) =>
           inviteMember({
             organizationId,
             email,
             role: inviteData.role.toLowerCase() as "admin" | "member" | "instructor",
+            requesterUserId: currentUser?.id,
           })
         )
       )
@@ -643,11 +648,16 @@ export default function EmployeePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-[#65B32E]/20">
-                      <SelectItem value="admin">Admin</SelectItem>
+                      {canAssignAdmin && <SelectItem value="admin">Admin</SelectItem>}
                       <SelectItem value="member">Member</SelectItem>
                       <SelectItem value="instructor">Instructor</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!canAssignAdmin && (
+                    <p className="text-xs text-muted-foreground">
+                      Only superadmin can assign admin role
+                    </p>
+                  )}
                 </div>
                 {error && (
                   <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md">
