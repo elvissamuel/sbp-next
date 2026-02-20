@@ -145,7 +145,7 @@ model Course {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   title           String
   description     String   @db.Text
-  slug            String   @unique
+  slug            String
   thumbnail       String?
   price           Float    @default(0)
   currency        String   @default("NGN")
@@ -160,6 +160,7 @@ model Course {
   enrollments     Enrollment[]
   resources       CourseResource[]
 
+  @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([slug])
 }

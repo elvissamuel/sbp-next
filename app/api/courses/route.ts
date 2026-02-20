@@ -61,12 +61,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })
     }
 
-    const slug = generateSlug(title)
+    // Check if a course with the same title already exists in this organization
+    const existingCourse = await prisma.course.findFirst({
+      where: {
+        organizationId,
+        title: title.trim(),
+      },
+    })
+
+    if (existingCourse) {
+      return NextResponse.json(
+        { error: "A course with this title already exists in your organization" },
+        { status: 400 }
+      )
+    }
+
+    // Generate slug and ensure it's unique within the organization
+    let baseSlug = generateSlug(title)
+    let slug = baseSlug
+    let slugCounter = 1
+
+    // Check if slug already exists in this organization and append number if needed
+    while (true) {
+      const existingSlug = await prisma.course.findUnique({
+        where: {
+          organizationId_slug: {
+            organizationId,
+            slug,
+          },
+        },
+      })
+
+      if (!existingSlug) {
+        break
+      }
+
+      slug = `${baseSlug}-${slugCounter}`
+      slugCounter++
+    }
 
     const course = await prisma.course.create({
       data: {
         organizationId,
-        title,
+        title: title.trim(),
         description,
         slug,
         status: status || "draft",

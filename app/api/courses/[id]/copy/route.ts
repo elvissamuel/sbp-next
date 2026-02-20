@@ -63,15 +63,28 @@ export async function POST(
       )
     }
 
-    // Generate a unique slug for the new course
-    let newSlug = generateSlug(sourceCourse.title)
-    let slugExists = await prisma.course.findUnique({
-      where: { slug: newSlug },
-    })
+    // Generate a unique slug for the new course within the organization
+    let baseSlug = generateSlug(sourceCourse.title)
+    let newSlug = baseSlug
+    let slugCounter = 1
 
-    // If slug exists, append a random string
-    if (slugExists) {
-      newSlug = `${newSlug}-${Date.now()}`
+    // Check if slug already exists in this organization and append number if needed
+    while (true) {
+      const slugExists = await prisma.course.findUnique({
+        where: {
+          organizationId_slug: {
+            organizationId,
+            slug: newSlug,
+          },
+        },
+      })
+
+      if (!slugExists) {
+        break
+      }
+
+      newSlug = `${baseSlug}-${slugCounter}`
+      slugCounter++
     }
 
     // Create the new course
