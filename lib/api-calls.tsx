@@ -395,6 +395,29 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  export const updateAdminPermissions = async (
+    memberId: string,
+    permissions: {
+      canManageCourses: boolean;
+      canManageMembers: boolean;
+      canManageSettings: boolean;
+      canManageDepartments: boolean;
+      canManageLevels: boolean;
+      canViewAnalytics: boolean;
+      canManageGroups: boolean;
+    },
+    requesterUserId?: string
+  ): Promise<IApiResponse<OrganizationMember>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(
+      await fetch(`${baseUrl}/api/organizations/members/${memberId}/permissions`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permissions, requesterUserId }),
+      })
+    );
+  };
+
   export const inviteMember = async (input: z.infer<typeof InviteMemberSchema>): Promise<IApiResponse<{ message: string; member: any }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/organizations/invite`, {
@@ -414,6 +437,15 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     department: string | null;
     name: string | null; // Computed from firstName + lastName, kept for backward compatibility
     role: string;
+    adminPermissions: {
+      canManageCourses: boolean;
+      canManageMembers: boolean;
+      canManageSettings: boolean;
+      canManageDepartments: boolean;
+      canManageLevels: boolean;
+      canViewAnalytics: boolean;
+      canManageGroups: boolean;
+    } | null;
     joinedAt: Date;
   };
 

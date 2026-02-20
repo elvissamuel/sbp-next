@@ -35,6 +35,7 @@ const allNavItems: NavItem[] = [
   { label: "Groups", href: "/org/groups", adminOnly: true, exactMatch: false },
   { label: "Departments", href: "/org/departments", adminOnly: true, exactMatch: false },
   { label: "Levels", href: "/org/levels", adminOnly: true, exactMatch: false },
+  { label: "Permissions", href: "/org/permissions", adminOnly: true, exactMatch: false },
   { label: "Settings", href: "/settings/org", adminOnly: true, exactMatch: false },
 ]
 
@@ -55,7 +56,8 @@ export function DashboardLayout({
   // Get user's role from primary organization
   const primaryOrg = getPrimaryOrganization()
   const userRole = primaryOrg?.role || "member"
-  const isAdmin = userRole === "admin"
+  const isAdmin = userRole === "admin" || userRole === "superadmin"
+  const isSuperAdmin = userRole === "superadmin"
 
   // Filter and transform nav items based on user role
   const navItems = allNavItems

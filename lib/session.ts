@@ -84,8 +84,8 @@ export function getPrimaryOrganization(): UserSession["organizations"][0] | null
   const organizations = getUserOrganizations();
   if (organizations.length === 0) return null;
 
-  // Prefer admin organization, otherwise return the first one
-  const adminOrg = organizations.find((org) => org.role === "admin");
+  // Prefer superadmin or admin organization, otherwise return the first one
+  const adminOrg = organizations.find((org) => org.role === "admin" || org.role === "superadmin");
   return adminOrg || organizations[0];
 }
 

@@ -78,7 +78,8 @@ model OrganizationMember {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId          String
   user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role            String   @default("member") // admin, instructor, member
+  role            String   @default("member") // superadmin, admin, instructor, member
+  adminPermissions Json?   // Permissions for admin role (only used when role === "admin")
   departmentId   String?  // Department assignment
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   levelId         String?  // Level/hierarchy assignment

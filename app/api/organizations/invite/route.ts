@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db"
 import { InviteMemberSchema } from "@/lib/validation-schema"
 import { sendInviteEmail } from "@/lib/email"
+import { isSuperAdmin } from "@/lib/permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
+import { Prisma } from "@prisma/client"
 
 // Invite a member to an organization
 export async function POST(request: NextRequest) {
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { organizationId, email, role } = validationResult.data
+    const { organizationId, email, role, requesterUserId } = validationResult.data
 
     // Verify organization exists
     const organization = await prisma.organization.findUnique({
@@ -30,6 +32,32 @@ export async function POST(request: NextRequest) {
 
     if (!organization) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })
+    }
+
+    // Check if requester is a superadmin (only superadmin can assign admin role)
+    if (role === "admin" && requesterUserId) {
+      const requesterMember = await prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId,
+            userId: requesterUserId,
+          },
+        },
+      })
+
+      if (!requesterMember) {
+        return NextResponse.json(
+          { error: "You must be a member of this organization to invite others" },
+          { status: 403 }
+        )
+      }
+
+      if (!isSuperAdmin(requesterMember.role)) {
+        return NextResponse.json(
+          { error: "Only superadmin can assign admin role to members" },
+          { status: 403 }
+        )
+      }
     }
 
     // Find user by email
@@ -61,11 +89,23 @@ export async function POST(request: NextRequest) {
       }
 
       // Add user to organization
+      // Set default permissions for admin role (all false - superadmin must grant permissions)
       const member = await prisma.organizationMember.create({
         data: {
           organizationId,
           userId: user.id,
           role: role.toLowerCase(), // Ensure lowercase to match schema (admin, member, instructor)
+          ...(role.toLowerCase() === "admin" && {
+            adminPermissions: {
+              canManageCourses: false,
+              canManageMembers: false,
+              canManageSettings: false,
+              canManageDepartments: false,
+              canManageLevels: false,
+              canViewAnalytics: false,
+              canManageGroups: false,
+            },
+          }),
         },
         include: {
           user: {

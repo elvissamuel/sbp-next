@@ -114,12 +114,12 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        // Create organization member with admin role
+        // Create organization member with superadmin role (creator is always superadmin)
         await tx.organizationMember.create({
           data: {
             organizationId: organization.id,
             userId: user.id,
-            role: "admin",
+            role: "superadmin",
           },
         })
       }

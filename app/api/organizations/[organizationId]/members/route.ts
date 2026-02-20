@@ -46,6 +46,15 @@ export async function GET(
         ? `${member.user.firstName} ${member.user.lastName}` 
         : member.user.name, // Keep for backward compatibility
       role: member.role,
+      adminPermissions: member.adminPermissions as {
+        canManageCourses: boolean;
+        canManageMembers: boolean;
+        canManageSettings: boolean;
+        canManageDepartments: boolean;
+        canManageLevels: boolean;
+        canViewAnalytics: boolean;
+        canManageGroups: boolean;
+      } | null,
       joinedAt: member.joinedAt,
     }))
 
