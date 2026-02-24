@@ -48,14 +48,50 @@ export const CreateResourceSchema = z
     }
   )
 
-export const CreateLessonSchema = z.object({
-  courseId: z.string().min(1, "Course ID is required"),
-  title: z.string().min(1, "Title is required"),
-  content: z.string().min(1, "Content is required"),
-  videoUrl: z.string().optional(), // Optional video URL
-  status: z.enum(["draft", "published"]).optional(), // Optional status
-  resourceIds: z.array(z.string()).optional(), // Optional array of resource IDs to reference
+// Slide structure validation
+const SlideSchema = z.object({
+  id: z.string(),
+  order: z.number().int().min(0),
+  title: z.string().optional(),
+  content: z.object({
+    type: z.literal("lexical"),
+    editorState: z.string(), // Lexical JSON state as string
+  }),
+  media: z.object({
+    type: z.enum(["image", "video", "none"]),
+    url: z.string().url().optional(),
+    thumbnail: z.string().url().optional(), // For videos
+  }),
+  layout: z.enum(["text-media", "media-text", "text-only", "media-only", "split", "split-reverse"]),
 })
+
+// Slides array validation
+const SlidesSchema = z.object({
+  slides: z.array(SlideSchema).min(1, "At least one slide is required"),
+})
+
+export const CreateLessonSchema = z
+  .object({
+    courseId: z.string().min(1, "Course ID is required"),
+    title: z.string().min(1, "Title is required"),
+    content: z.string().optional(), // Optional if slides are provided
+    slides: SlidesSchema.optional(), // Optional slides structure
+    videoUrl: z.string().optional(), // Optional video URL
+    status: z.enum(["draft", "published"]).optional(), // Optional status
+    resourceIds: z.array(z.string()).optional(), // Optional array of resource IDs to reference
+  })
+  .refine(
+    (data) => {
+      // Either content or slides must be provided
+      const hasContent = data.content && data.content.trim().length > 0
+      const hasSlides = data.slides && data.slides.slides && data.slides.slides.length > 0
+      return hasContent || hasSlides
+    },
+    {
+      message: "Either content or slides must be provided",
+      path: ["content"],
+    }
+  )
 
 export const CreateQuizSchema = z.object({
   courseId: z.string().min(1, "Course ID is required"),

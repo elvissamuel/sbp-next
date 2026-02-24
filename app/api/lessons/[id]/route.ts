@@ -54,20 +54,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
     }
 
-    const { title, content, videoUrl, status } = body
+    const { title, content, slides, videoUrl, status } = body
 
     // Build update data object with only provided fields
     const updateData: {
       title?: string
       content?: string
+      slides?: any
       videoUrl?: string | null
       status?: string
     } = {}
 
     if (title !== undefined) updateData.title = title
     if (content !== undefined) updateData.content = content
+    if (slides !== undefined) updateData.slides = slides ? (slides as any) : null
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null
     if (status !== undefined) updateData.status = status
+
+    // Prepare content for indexing
+    let contentForIndexing = content
+    if (contentForIndexing === undefined && slides) {
+      // Extract text from slides for indexing
+      if (slides.slides && Array.isArray(slides.slides)) {
+        contentForIndexing = slides.slides
+          .map((slide: any) => slide.title || "")
+          .filter(Boolean)
+          .join(" ")
+      }
+    }
 
     // Update lesson
     const lesson = await prisma.lesson.update({
@@ -75,10 +89,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data: updateData,
     })
 
-    // Update lesson content in pgvector for AI retrieval (only if content was updated)
-    if (content !== undefined) {
+    // Update lesson content in pgvector for AI retrieval (only if content or slides were updated)
+    if (content !== undefined || slides !== undefined) {
       try {
-        await updateLessonInIndex(lesson.id, content, {
+        const finalContent = contentForIndexing || lesson.content || ""
+        await updateLessonInIndex(lesson.id, finalContent, {
           lessonId: lesson.id,
           courseId: existingLesson.courseId,
           organizationId: existingLesson.course.organizationId,

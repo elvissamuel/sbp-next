@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery, useMutation } from "@tanstack/react-query"
@@ -15,12 +15,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Upload, Video } from "lucide-react"
-import { createLesson, getCourseResources, generateLessonContent, uploadVideo, type CourseResource } from "@/lib/api-calls"
+import { createLesson, getCourseResources, generateLessonContent, uploadVideo, type CourseResource, type Slide } from "@/lib/api-calls"
 import { extractTextFromPdfFile } from "@/lib/pdf-client"
 import { CreateLessonSchema } from "@/lib/validation-schema"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
-import { MarkdownEditor } from "@/components/markdown-editor"
+import { LessonContentEditor } from "@/components/lesson/lesson-content-editor"
 
 type FormValues = z.infer<typeof CreateLessonSchema>
 
@@ -35,6 +35,7 @@ export default function CreateLessonPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null)
   const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [slides, setSlides] = useState<Slide[]>([])
 
   // Fetch course resources for selection
   const { data: resourcesResponse, isLoading: resourcesLoading } = useQuery({
@@ -53,10 +54,24 @@ export default function CreateLessonPage() {
       content: "",
       videoUrl: "",
       resourceIds: [],
+      slides: undefined,
     },
   })
 
   const selectedResourceIds = form.watch("resourceIds") || []
+
+  // Sync slides state with form values for validation
+  useEffect(() => {
+    if (slides.length > 0) {
+      form.setValue("slides", { slides }, { shouldValidate: false })
+      // Clear content when using slides
+      if (form.getValues("content")) {
+        form.setValue("content", "", { shouldValidate: false })
+      }
+    } else {
+      form.setValue("slides", undefined, { shouldValidate: false })
+    }
+  }, [slides, form])
 
   // Create lesson mutation
   const createLessonMutation = useMutation({
@@ -296,6 +311,16 @@ export default function CreateLessonPage() {
       ...values,
       courseId,
       resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
+      // Use slides from form values if they exist, otherwise use content
+      ...(values.slides && values.slides.slides && values.slides.slides.length > 0
+        ? {
+            slides: values.slides,
+            content: undefined, // Clear content if using slides
+          }
+        : {
+            content: values.content || "",
+            slides: undefined,
+          }),
     }
     createLessonMutation.mutate(submitData)
   }
@@ -494,23 +519,16 @@ export default function CreateLessonPage() {
                     </Button>
                   )}
                 </div>
-                <MarkdownEditor
-                  value={form.watch("content") || ""}
-                  onChange={(value) => form.setValue("content", value)}
-                  placeholder={
-                    contentMode === "ai"
-                      ? "Click 'Generate Content' to create lesson content using AI"
-                      : contentMode === "upload"
-                      ? "Upload a PDF file to extract content"
-                      : "Enter lesson content... (Markdown supported)"
-                  }
-                  rows={15}
+                <LessonContentEditor
+                  content={form.watch("content") || ""}
+                  slides={slides}
+                  onContentChange={(value) => form.setValue("content", value)}
+                  onSlidesChange={setSlides}
                   disabled={createLessonMutation.isPending || (contentMode === "ai" && isGenerating) || (contentMode === "upload" && isExtracting)}
                 />
                 {form.formState.errors.content && (
                   <p className="text-sm text-destructive">{form.formState.errors.content.message}</p>
                 )}
-                <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
               </div>
 
               {/* Error Display */}

@@ -6,7 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LogOut, Settings, User, Menu, X } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { clearSession, getPrimaryOrganization, getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
@@ -44,18 +44,23 @@ export function DashboardLayout({
   userEmail,
 }: { children: React.ReactNode; userEmail?: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  const [user, setUser] = useState<{ id: string; email: string; firstName: string | null; lastName: string | null; name: string | null } | null>(null)
+  const [userRole, setUserRole] = useState<string>("member")
   const pathname = usePathname()
   const router = useRouter()
 
-  // Get current user from session
-  const currentUser = getCurrentUser()
-  const user = currentUser || null
+  // Load user and role data on client side only to avoid hydration mismatch
+  useEffect(() => {
+    setIsMounted(true)
+    const currentUser = getCurrentUser()
+    const primaryOrg = getPrimaryOrganization()
+    setUser(currentUser)
+    setUserRole(primaryOrg?.role || "member")
+  }, [])
+
   const displayEmail = userEmail || user?.email || "user@example.com"
   const userFullName = getUserFullName(user?.firstName, user?.lastName, user?.name)
-
-  // Get user's role from primary organization
-  const primaryOrg = getPrimaryOrganization()
-  const userRole = primaryOrg?.role || "member"
   const isAdmin = userRole === "admin" || userRole === "superadmin"
   const isSuperAdmin = userRole === "superadmin"
 
@@ -81,18 +86,20 @@ export function DashboardLayout({
     router.push("/")
   }
 
-  // Find the active nav item
-  const activeNavItem = navItems.find((item) => {
-    if (item.exactMatch) {
-      return pathname === item.href
-    }
-    // For non-exact matches, check if pathname starts with the href
-    // Also handle special cases like /classroom/course routes
-    if (item.href === "/course") {
-      return pathname === "/course" || pathname.startsWith("/classroom/course")
-    }
-    return pathname.startsWith(item.href)
-  })
+  // Find the active nav item (only after mount to avoid hydration mismatch)
+  const activeNavItem = isMounted
+    ? navItems.find((item) => {
+        if (item.exactMatch) {
+          return pathname === item.href
+        }
+        // For non-exact matches, check if pathname starts with the href
+        // Also handle special cases like /classroom/course routes
+        if (item.href === "/course") {
+          return pathname === "/course" || pathname.startsWith("/classroom/course")
+        }
+        return pathname.startsWith(item.href)
+      })
+    : null
 
   // Get page title from active nav item or use pathname
   const pageTitle = activeNavItem?.label || "Dashboard"
@@ -118,15 +125,18 @@ export function DashboardLayout({
 
         <nav className="p-4 space-y-2">
           {navItems.map((item) => {
+            // Only calculate active state after mount to avoid hydration mismatch
             let isActive = false
-            if (item.exactMatch) {
-              isActive = pathname === item.href
-            } else {
-              // For courses, also match classroom routes
-              if (item.href === "/course") {
-                isActive = pathname === "/course" || pathname.startsWith("/classroom/course")
+            if (isMounted) {
+              if (item.exactMatch) {
+                isActive = pathname === item.href
               } else {
-                isActive = pathname.startsWith(item.href)
+                // For courses, also match classroom routes
+                if (item.href === "/course") {
+                  isActive = pathname === "/course" || pathname.startsWith("/classroom/course")
+                } else {
+                  isActive = pathname.startsWith(item.href)
+                }
               }
             }
             

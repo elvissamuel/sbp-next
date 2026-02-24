@@ -171,7 +171,8 @@ model Lesson {
   courseId    String
   course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title       String
-  content     String   @db.Text
+  content     String   @db.Text  // Keep for backward compatibility (text-only lessons)
+  slides      Json?    // Slide-based lessons with rich text, images, and videos
   videoUrl    String?
   order       Int      @default(0)
   duration    Int?     // in minutes
