@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { courseId, title, content, videoUrl, status, resourceIds } = validationResult.data
+    const { courseId, title, content, slides, videoUrl, status, resourceIds } = validationResult.data
 
     // Verify course exists
     const course = await prisma.course.findUnique({
@@ -36,12 +36,31 @@ export async function POST(request: NextRequest) {
     // Get the next order number
     const nextOrder = course.lessons.length
 
+    // Prepare content for indexing (use content if available, otherwise extract from slides)
+    let contentForIndexing = content || ""
+    if (!contentForIndexing && slides?.slides) {
+      // Extract text from slides for indexing
+      contentForIndexing = slides.slides
+        .map((slide) => {
+          try {
+            const editorState = JSON.parse(slide.content.editorState)
+            // Extract text from Lexical editor state (simplified - just get text nodes)
+            return slide.title || ""
+          } catch {
+            return slide.title || ""
+          }
+        })
+        .filter(Boolean)
+        .join(" ")
+    }
+
     // Create lesson
     const lesson = await prisma.lesson.create({
       data: {
         courseId,
         title,
-        content,
+        content: content || "", // Keep for backward compatibility
+        slides: slides ? (slides as any) : null, // Store slides as JSON
         videoUrl: videoUrl || null,
         status: status || "draft",
         order: nextOrder,
@@ -50,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     // Index lesson content to pgvector for AI retrieval
     try {
-      await indexLessonContent(lesson.id, content, {
+      await indexLessonContent(lesson.id, contentForIndexing, {
         lessonId: lesson.id,
         courseId: course.id,
         organizationId: course.organizationId,

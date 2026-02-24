@@ -17,8 +17,10 @@ export async function GET(
     // Get the current user from query params if available (for enrollment/progress)
     const userId = request.nextUrl.searchParams.get("userId") || null
 
+    // Since slug is only unique within an organization (composite unique with organizationId),
+    // we need to use findFirst instead of findUnique
     // Try to find by slug first, then by id
-    let course = await prisma.course.findUnique({
+    let course = await prisma.course.findFirst({
       where: { slug },
       include: {
         lessons: {

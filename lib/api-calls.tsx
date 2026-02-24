@@ -108,12 +108,34 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  // Slide types
+  export type Slide = {
+    id: string;
+    order: number;
+    title?: string;
+    content: {
+      type: "lexical";
+      editorState: string; // Lexical JSON state as string
+    };
+    media: {
+      type: "image" | "video" | "none";
+      url?: string;
+      thumbnail?: string; // For videos
+    };
+    layout: "text-media" | "media-text" | "text-only" | "media-only" | "split" | "split-reverse";
+  };
+
+  export type SlidesData = {
+    slides: Slide[];
+  };
+
   // Lesson types
   export type Lesson = {
     id: string;
     courseId: string;
     title: string;
-    content: string;
+    content: string; // Keep for backward compatibility (text-only lessons)
+    slides?: SlidesData | null; // Slide-based lessons
     videoUrl?: string | null;
     order: number;
     duration?: number | null;
@@ -369,7 +391,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  export const updateLesson = async (lessonId: string, updates: { title: string; content: string; videoUrl?: string; status?: string }): Promise<IApiResponse<Lesson>> => {
+  export const updateLesson = async (lessonId: string, updates: { title?: string; content?: string; slides?: SlidesData; videoUrl?: string; status?: string }): Promise<IApiResponse<Lesson>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/lessons/${lessonId}`, {
       method: "PUT",
