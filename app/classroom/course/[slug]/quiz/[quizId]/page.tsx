@@ -7,12 +7,25 @@ import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { CheckCircle2, Circle, ChevronLeft, ChevronRight, Loader2, HelpCircle, FileText, Clock, Trophy, AlertCircle } from "lucide-react"
+import {
+  CheckCircle2,
+  Circle,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  HelpCircle,
+  FileText,
+  Clock,
+  Trophy,
+  AlertCircle,
+  Volume2,
+  VolumeX,
+} from "lucide-react"
 import { getQuiz, getCourseBySlug, submitQuiz, type Lesson, type Quiz, type QuizQuestion } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { TextToSpeech } from "@/components/text-to-speech"
 
@@ -37,6 +50,91 @@ export default function ClassroomQuizView() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [showResults, setShowResults] = useState(false)
   const [quizResult, setQuizResult] = useState<{ score: number; totalPoints: number; passed: boolean } | null>(null)
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true)
+  const [hasStartedAudio, setHasStartedAudio] = useState(false)
+
+  const ambienceRef = useRef<HTMLAudioElement | null>(null)
+  const winRef = useRef<HTMLAudioElement | null>(null)
+  const failRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    // Initialize audio elements once on mount
+    const ambience = new Audio("/sound/quiz-ambience.mp3")
+    ambience.loop = true
+    ambience.volume = 0.35
+
+    const winner = new Audio("/sound/winner-sound.mp3")
+    winner.volume = 0.7
+
+    const failure = new Audio("/sound/failure-sound.mp3")
+    failure.volume = 0.7
+
+    ambienceRef.current = ambience
+    winRef.current = winner
+    failRef.current = failure
+
+    return () => {
+      ambience.pause()
+      winner.pause()
+      failure.pause()
+    }
+  }, [])
+
+  const startBackgroundSound = () => {
+    if (!isSoundEnabled || hasStartedAudio) return
+    const ambience = ambienceRef.current
+    if (!ambience) return
+    ambience.currentTime = 0
+    ambience
+      .play()
+      .then(() => {
+        setHasStartedAudio(true)
+      })
+      .catch(() => {
+        // Autoplay blocked; user can toggle sound manually
+      })
+  }
+
+  const stopBackgroundSound = () => {
+    const ambience = ambienceRef.current
+    if (!ambience) return
+    ambience.pause()
+    ambience.currentTime = 0
+    setHasStartedAudio(false)
+  }
+
+  const playResultSound = (passed: boolean) => {
+    if (!isSoundEnabled) return
+    const audio = passed ? winRef.current : failRef.current
+    if (!audio) return
+    audio.currentTime = 0
+    audio.play().catch(() => {
+      // Ignore playback errors
+    })
+  }
+
+  const toggleSound = () => {
+    const next = !isSoundEnabled
+    setIsSoundEnabled(next)
+
+    const ambience = ambienceRef.current
+    const winner = winRef.current
+    const failure = failRef.current
+
+    const all = [ambience, winner, failure].filter(Boolean) as HTMLAudioElement[]
+
+    all.forEach((audio) => {
+      audio.muted = !next
+    })
+
+    if (!next) {
+      // Turning sound off should stop the background ambience
+      if (ambience) {
+        ambience.pause()
+      }
+      setHasStartedAudio(false)
+    }
+  }
 
   // Fetch quiz data
   const { data: quizResponse, isLoading: quizLoading } = useQuery({
@@ -62,6 +160,14 @@ export default function ClassroomQuizView() {
   const questions = quiz?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
   const totalQuestions = questions.length
+
+  // Automatically start ambience when arriving on the quiz (e.g. from a lesson),
+  // as long as sound is enabled and results aren't being shown yet.
+  useEffect(() => {
+    if (!showResults && totalQuestions > 0 && isSoundEnabled) {
+      startBackgroundSound()
+    }
+  }, [showResults, totalQuestions, isSoundEnabled])
 
   // Calculate which lessons are completed
   const completedLessonsCount = stats.completedLessons
@@ -116,6 +222,9 @@ export default function ClassroomQuizView() {
     },
     onSuccess: (response) => {
       if (response.data) {
+        stopBackgroundSound()
+        playResultSound(response.data.passed)
+
         setQuizResult({
           score: response.data.score,
           totalPoints: response.data.totalPoints,
@@ -143,6 +252,9 @@ export default function ClassroomQuizView() {
   })
 
   const handleAnswerSelect = (questionId: string, answer: string) => {
+    if (!hasStartedAudio) {
+      startBackgroundSound()
+    }
     setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }))
   }
 
@@ -272,6 +384,7 @@ export default function ClassroomQuizView() {
                           setCurrentQuestionIndex(0)
                           setSelectedAnswers({})
                           setQuizResult(null)
+                          setHasStartedAudio(false)
                         }} className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
                           Retake Quiz
                         </Button>
@@ -405,14 +518,39 @@ export default function ClassroomQuizView() {
           <div className="md:col-span-3">
             <Card className="border-[#65B32E]/20 bg-white">
               <CardContent className="pt-6">
-                {/* Progress bar */}
+                {/* Progress bar + sound toggle */}
                 <div className="mb-6">
-                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                    <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
-                    <span className="text-[#65B32E]">{Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%</span>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground mb-2 gap-3">
+                    <div>
+                      <span>
+                        Question {currentQuestionIndex + 1} of {totalQuestions}
+                      </span>
+                      <span className="ml-3 text-[#65B32E] font-semibold">
+                        {Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleSound}
+                      className="border-[#65B32E]/40 text-[#65B32E] hover:bg-[#65B32E]/10 flex items-center gap-2"
+                    >
+                      {isSoundEnabled ? (
+                        <>
+                          <Volume2 size={16} />
+                          <span className="hidden sm:inline">Sound on</span>
+                        </>
+                      ) : (
+                        <>
+                          <VolumeX size={16} />
+                          <span className="hidden sm:inline">Sound off</span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                   <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#65B32E]/20">
-                    <div 
+                    <div
                       className="h-full bg-[#65B32E] transition-all"
                       style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
                     />
