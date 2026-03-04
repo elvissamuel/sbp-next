@@ -472,11 +472,31 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
   };
 
   export const getOrganizationMembers = async (organizationId: string): Promise<IApiResponse<OrganizationMember[]>> => {
-    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/${organizationId}/members`, {
+  const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+  return handleApiCalls(await fetch(`${baseUrl}/api/organizations/${organizationId}/members`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     }));
+  };
+
+  export const deleteMember = async (
+    memberId: string,
+    requesterUserId?: string
+  ): Promise<IApiResponse<{ success: boolean; message: string; member?: { id: string; email: string; name: string } }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    let url = `${baseUrl}/api/organizations/members/${memberId}`;
+
+    if (requesterUserId) {
+      const separator = url.includes("?") ? "&" : "?";
+      url = `${url}${separator}requesterUserId=${encodeURIComponent(requesterUserId)}`;
+    }
+
+    return handleApiCalls(
+      await fetch(url, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      })
+    );
   };
 
   export type Enrollment = {
