@@ -76,6 +76,18 @@ export default function CourseManagementPage() {
   const members = membersResponse?.data || []
   const defaultCourses = defaultCoursesResponse?.data || []
 
+  const { data: subscriptionCheck } = useQuery({
+    queryKey: ["subscription-check", organizationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/subscriptions/check?organizationId=${organizationId}`)
+      return res.json()
+    },
+    enabled: !!organizationId,
+  })
+
+  const isFreePlan = subscriptionCheck?.subscription?.plan === "free"
+  const freeCourseLimitReached = isFreePlan && courses.length >= 2
+
   // Prepare options for react-select
   const memberOptions = useMemo(() => {
     return members.map((member: OrganizationMember) => ({
@@ -323,12 +335,29 @@ export default function CourseManagementPage() {
                 Upload Resource
               </Link>
             </Button>
-            <Button asChild className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
-              <Link href="/org/course/create">
+            {freeCourseLimitReached ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#DE1915]/30 text-[#DE1915] hover:bg-[#DE1915]/5"
+                onClick={() => {
+                  toast.error("Free plan limit reached", {
+                    description: "You can only create up to 2 courses on the Free plan. Upgrade to create more.",
+                  })
+                  router.push("/settings/subscription")
+                }}
+              >
                 <Plus size={16} className="mr-2" />
-                Create Course
-              </Link>
-            </Button>
+                Create Course (limit reached)
+              </Button>
+            ) : (
+              <Button asChild className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+                <Link href="/org/course/create">
+                  <Plus size={16} className="mr-2" />
+                  Create Course
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -379,7 +408,7 @@ export default function CourseManagementPage() {
                             </Button>
                             <Button
                               onClick={() => handleCopyCourse(course.id)}
-                              disabled={copyCourseMutation.isPending}
+                              disabled={copyCourseMutation.isPending || freeCourseLimitReached}
                               className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
                             >
                               {copyCourseMutation.isPending ? (
@@ -390,7 +419,7 @@ export default function CourseManagementPage() {
                               ) : (
                                 <>
                                   <Download size={16} className="mr-2" />
-                                  Add
+                                  {freeCourseLimitReached ? "Limit reached" : "Add"}
                                 </>
                               )}
                             </Button>

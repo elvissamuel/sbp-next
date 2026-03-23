@@ -240,6 +240,7 @@ export default function CreateQuizPage() {
                 <Label>Reference Lessons (Optional)</Label>
                 <p className="text-sm text-muted-foreground">
                   Select lessons that AI can reference when generating quiz questions. This takes priority over resources.
+                  For <strong>slide lessons</strong>, we use slide titles, on-slide text, and (if you used AI image generation) the saved image prompt. Plain text in the lesson body is included too.
                 </p>
                 {courseLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -326,7 +327,8 @@ export default function CreateQuizPage() {
               {/* Info Box */}
               <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> The quiz will be automatically generated using AI based on your selected lessons, resources, or course content. 
+                  <strong>Note:</strong> The quiz will be automatically generated using AI based on your selected lessons, resources, or course content.
+                  Slide-based lessons send slide text and AI image prompts to the generator—select the lesson as usual.
                   {selectedLessonIds.length > 0 && " Selected lessons will be prioritized."}
                   {numQuestions > 0 && ` It will contain ${numQuestions} question${numQuestions > 1 ? 's' : ''}.`}
                 </p>

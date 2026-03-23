@@ -106,6 +106,33 @@ function HomeContent() {
       return
     }
 
+    if (planName.toLowerCase() === "free") {
+      try {
+        setProcessingPlan(planName)
+        const res = await fetch("/api/subscriptions/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ organizationId: organization.id, userId: user.id }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to activate free plan")
+        }
+        toast.success("Free plan activated!", {
+          description: "Welcome! You can now access your dashboard.",
+        })
+        router.push("/dashboard")
+      } catch (error: any) {
+        console.error("Error activating free plan:", error)
+        toast.error("Failed to activate free plan", {
+          description: error?.message || "Please try again later.",
+        })
+      } finally {
+        setProcessingPlan(null)
+      }
+      return
+    }
+
     if (!amount) {
       // Custom plan - contact support or handle differently
       toast.info("Contact support for custom pricing", {
@@ -243,8 +270,15 @@ function HomeContent() {
             <p className="text-muted-foreground max-w-2xl mx-auto">Choose the perfect plan for your needs</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             {[
+              {
+                name: "Free",
+                price: "₦0",
+                amount: 0,
+                description: "Try it out (limited)",
+                features: ["Up to 2 courses", "Invite up to 2 members", "Basic dashboard access"],
+              },
               {
                 name: "Starter",
                 price: "₦50,000",

@@ -113,6 +113,8 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     id: string;
     order: number;
     title?: string;
+    /** Set when an image is generated with AI — used when generating quizzes from this lesson */
+    aiImagePrompt?: string;
     content: {
       type: "lexical";
       editorState: string; // Lexical JSON state as string

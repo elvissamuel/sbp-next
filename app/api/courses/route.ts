@@ -61,6 +61,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })
     }
 
+    // Enforce Free tier course limit: max 2 courses
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: {
+        organizationId,
+        status: "active",
+        currentPeriodEnd: {
+          gte: new Date(),
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    if (activeSubscription?.plan === "free") {
+      const courseCount = await prisma.course.count({
+        where: { organizationId },
+      })
+      if (courseCount >= 2) {
+        return NextResponse.json(
+          { error: "Free plan limit reached: you can only create up to 2 courses." },
+          { status: 403 }
+        )
+      }
+    }
+
     // Check if a course with the same title already exists in this organization
     const existingCourse = await prisma.course.findFirst({
       where: {

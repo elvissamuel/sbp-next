@@ -266,7 +266,7 @@ export default function ClassroomLessonView() {
 
               {/* Slide-based Lesson */}
               {lesson.slides && lesson.slides.slides && lesson.slides.slides.length > 0 ? (
-                <div className="bg-white rounded-2xl shadow-xl border-2 border-[#65B32E]/20 overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-xl border-2 border-[#65B32E]/20 overflow-visible p-1">
                   <SlideViewer
                     slides={lesson.slides.slides}
                     onComplete={handleMarkComplete}
