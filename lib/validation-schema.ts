@@ -53,6 +53,8 @@ const SlideSchema = z.object({
   id: z.string(),
   order: z.number().int().min(0),
   title: z.string().optional(),
+  /** Saved when generating an image with AI — used for quiz generation from slide lessons */
+  aiImagePrompt: z.string().optional(),
   content: z.object({
     type: z.literal("lexical"),
     editorState: z.string(), // Lexical JSON state as string

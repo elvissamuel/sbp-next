@@ -26,6 +26,30 @@ export async function POST(
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })
     }
 
+    // Enforce Free tier course limit: max 2 courses (copy counts too)
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: {
+        organizationId,
+        status: "active",
+        currentPeriodEnd: {
+          gte: new Date(),
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    if (activeSubscription?.plan === "free") {
+      const courseCount = await prisma.course.count({
+        where: { organizationId },
+      })
+      if (courseCount >= 2) {
+        return NextResponse.json(
+          { error: "Free plan limit reached: you can only have up to 2 courses." },
+          { status: 403 }
+        )
+      }
+    }
+
     // Find the source course with all its relations
     const sourceCourse = await prisma.course.findUnique({
       where: { id: sourceCourseId },

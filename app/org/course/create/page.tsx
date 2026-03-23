@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
-import { createCourse, uploadImage } from "@/lib/api-calls"
+import { createCourse, getCourses, uploadImage } from "@/lib/api-calls"
 import { CreateCourseSchema } from "@/lib/validation-schema"
 import { getPrimaryOrganization } from "@/lib/session"
 import { z } from "zod"
 import { toast } from "sonner"
 import { useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,6 +40,26 @@ export default function CreateCoursePage() {
   // Get primary organization from session
   const primaryOrganization = getPrimaryOrganization()
   const organizationId = primaryOrganization?.id || ""
+
+  const { data: subscriptionCheck } = useQuery({
+    queryKey: ["subscription-check", organizationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/subscriptions/check?organizationId=${organizationId}`)
+      return res.json()
+    },
+    enabled: !!organizationId,
+  })
+
+  const isFreePlan = subscriptionCheck?.subscription?.plan === "free"
+
+  const { data: coursesResponse } = useQuery({
+    queryKey: ["courses", organizationId, "count-for-limit"],
+    queryFn: () => getCourses(organizationId),
+    enabled: !!organizationId && isFreePlan,
+  })
+
+  const existingCoursesCount = coursesResponse?.data?.length || 0
+  const freeCourseLimitReached = isFreePlan && existingCoursesCount >= 2
 
   // Create a form schema without organizationId for the form
   const FormCourseSchema = CreateCourseSchema.omit({ organizationId: true })
@@ -190,6 +211,16 @@ export default function CreateCoursePage() {
       return
     }
 
+    if (freeCourseLimitReached) {
+      form.setError("root", {
+        message: "Free plan limit reached: you can only create up to 2 courses. Upgrade your plan to create more.",
+      })
+      toast.error("Free plan limit reached", {
+        description: "Upgrade your plan to create more than 2 courses.",
+      })
+      return
+    }
+
     // Clean up thumbnail - convert empty string to undefined
     const submitData: z.infer<typeof CreateCourseSchema> = {
       ...values,
@@ -224,6 +255,22 @@ export default function CreateCoursePage() {
                 {form.formState.errors.root && (
                   <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md text-sm text-[#DE1915]">
                     {form.formState.errors.root.message}
+                  </div>
+                )}
+
+                {freeCourseLimitReached && (
+                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md text-sm text-[#DE1915] flex items-center justify-between gap-3">
+                    <span>
+                      Free plan limit reached: you already have {existingCoursesCount} course{existingCoursesCount !== 1 ? "s" : ""}. Upgrade to create more.
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-[#DE1915]/30 text-[#DE1915] hover:bg-[#DE1915]/5"
+                      onClick={() => router.push("/settings/subscription")}
+                    >
+                      Upgrade
+                    </Button>
                   </div>
                 )}
                 
@@ -373,7 +420,7 @@ export default function CreateCoursePage() {
                   <Button
                     type="submit"
                     className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
-                    disabled={createCourseMutation.isPending}
+                    disabled={createCourseMutation.isPending || freeCourseLimitReached}
                   >
                     {createCourseMutation.isPending ? "Creating..." : "Create Course"}
                   </Button>

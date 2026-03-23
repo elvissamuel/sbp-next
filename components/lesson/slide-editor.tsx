@@ -8,10 +8,25 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LexicalEditor } from "@/components/editor"
 import { uploadImage, uploadVideo, type Slide, type SlidesData } from "@/lib/api-calls"
-import { Plus, Trash2, GripVertical, Image, Video, Loader2, Eye } from "lucide-react"
+import { Plus, Trash2, GripVertical, Image, Video, Loader2, Eye, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 import { v4 as uuidv4 } from "uuid"
+import {
+  SLIDE_IMAGE_AI_HEIGHT,
+  SLIDE_IMAGE_AI_WIDTH,
+  SLIDE_IMAGE_ASPECT_LABEL,
+  buildSlideImageTechnicalPromptSuffix,
+} from "@/lib/slide-presentation"
+import { SlideImageFrame } from "@/components/lesson/slide-image-frame"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 interface SlideEditorProps {
   slides: Slide[]
@@ -21,6 +36,10 @@ interface SlideEditorProps {
 
 export function SlideEditor({ slides, onChange, disabled = false }: SlideEditorProps) {
   const [uploadingMedia, setUploadingMedia] = useState<{ slideId: string; type: "image" | "video" } | null>(null)
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
+  const [aiSlideId, setAiSlideId] = useState<string | null>(null)
+  const [aiPrompt, setAiPrompt] = useState("")
+  const [isGeneratingAiImage, setIsGeneratingAiImage] = useState(false)
 
   const addSlide = useCallback(() => {
     const newSlide: Slide = {
@@ -85,7 +104,11 @@ export function SlideEditor({ slides, onChange, disabled = false }: SlideEditorP
     onChange(reordered)
   }
 
-  const handleImageUpload = async (slideId: string, file: File) => {
+  const handleImageUpload = async (
+    slideId: string,
+    file: File,
+    options?: { aiImagePrompt?: string; suppressSuccessToast?: boolean }
+  ) => {
     // Validate file type
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
     if (!validTypes.includes(file.type)) {
@@ -114,8 +137,11 @@ export function SlideEditor({ slides, onChange, disabled = false }: SlideEditorP
             type: "image",
             url: response.data.url,
           },
+          ...(options?.aiImagePrompt !== undefined ? { aiImagePrompt: options.aiImagePrompt } : {}),
         })
-        toast.success("Image uploaded successfully")
+        if (!options?.suppressSuccessToast) {
+          toast.success("Image uploaded successfully")
+        }
       } else if (response.error) {
         const errorMsg = typeof response.error === "string" ? response.error : response.error?.message || "Failed to upload image"
         toast.error("Failed to upload image", { description: errorMsg })
@@ -127,6 +153,72 @@ export function SlideEditor({ slides, onChange, disabled = false }: SlideEditorP
       })
     } finally {
       setUploadingMedia(null)
+    }
+  }
+
+  const openAiImageDialog = (slide: Slide) => {
+    setAiSlideId(slide.id)
+    const seed = slide.title?.trim()
+      ? `Create a clean, modern slide illustration for: "${slide.title}".\nStyle: professional, minimal, high-contrast, suitable for training slides.\n`
+      : "Create a clean, modern slide illustration.\nStyle: professional, minimal, high-contrast, suitable for training slides.\n"
+    setAiPrompt(seed)
+    setAiDialogOpen(true)
+  }
+
+  const generateAiImageForSlide = async () => {
+    if (!aiSlideId) return
+    const prompt = aiPrompt.trim()
+    if (!prompt) {
+      toast.error("Prompt is required")
+      return
+    }
+
+    setIsGeneratingAiImage(true)
+    try {
+      const fullPrompt = `${prompt}${buildSlideImageTechnicalPromptSuffix()}`
+      const res = await fetch("/api/ai/generate-slide-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          width: SLIDE_IMAGE_AI_WIDTH,
+          height: SLIDE_IMAGE_AI_HEIGHT,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to generate image")
+      }
+
+      const contentType: string = data.contentType || "image/png"
+      const base64: string = data.imageBase64
+      if (!base64) {
+        throw new Error("No image returned")
+      }
+
+      const byteString = atob(base64)
+      const bytes = new Uint8Array(byteString.length)
+      for (let i = 0; i < byteString.length; i++) {
+        bytes[i] = byteString.charCodeAt(i)
+      }
+
+      const blob = new Blob([bytes], { type: contentType })
+      const file = new File([blob], `slide-${aiSlideId}.png`, { type: contentType })
+
+      await handleImageUpload(aiSlideId, file, {
+        aiImagePrompt: prompt,
+        suppressSuccessToast: true,
+      })
+      setAiDialogOpen(false)
+      setAiSlideId(null)
+      toast.success("AI image saved to slide")
+    } catch (error: any) {
+      toast.error("Failed to generate image", {
+        description: error?.message || "Please try again.",
+      })
+    } finally {
+      setIsGeneratingAiImage(false)
     }
   }
 
@@ -178,6 +270,67 @@ export function SlideEditor({ slides, onChange, disabled = false }: SlideEditorP
 
   return (
     <div className="space-y-4">
+      <Dialog open={aiDialogOpen} onOpenChange={(open) => setAiDialogOpen(open)}>
+        <DialogContent className="bg-white border-[#65B32E]/20 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#65B32E]">Generate slide image with AI</DialogTitle>
+            <DialogDescription className="space-y-2">
+              <span>
+                Write a prompt for the image. When it’s generated, we’ll save it as this slide’s image.
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Technical: we send{" "}
+                <strong>
+                  {SLIDE_IMAGE_AI_WIDTH}×{SLIDE_IMAGE_AI_HEIGHT}px ({SLIDE_IMAGE_ASPECT_LABEL})
+                </strong>{" "}
+                to the model so the image matches the learner slide area (full image, no edge crop).
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label>Prompt</Label>
+            <Textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              rows={8}
+              className="border-[#65B32E]/30"
+              placeholder="Describe what you want on the slide..."
+              disabled={isGeneratingAiImage}
+            />
+            <div className="flex gap-2 justify-end pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                onClick={() => setAiDialogOpen(false)}
+                disabled={isGeneratingAiImage}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                onClick={generateAiImageForSlide}
+                disabled={isGeneratingAiImage}
+              >
+                {isGeneratingAiImage ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate & Save
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center justify-between">
         <div>
           <Label className="text-[#65B32E]">Slides</Label>
@@ -230,6 +383,7 @@ export function SlideEditor({ slides, onChange, disabled = false }: SlideEditorP
                           onRemove={() => removeSlide(slide.id)}
                           onImageUpload={(file) => handleImageUpload(slide.id, file)}
                           onVideoUpload={(file) => handleVideoUpload(slide.id, file)}
+                          onAiImage={() => openAiImageDialog(slide)}
                           isUploading={uploadingMedia?.slideId === slide.id}
                           uploadType={uploadingMedia?.slideId === slide.id ? uploadingMedia.type : undefined}
                           disabled={disabled}
@@ -256,6 +410,7 @@ interface SlideItemProps {
   onRemove: () => void
   onImageUpload: (file: File) => void
   onVideoUpload: (file: File) => void
+  onAiImage: () => void
   isUploading: boolean
   uploadType?: "image" | "video"
   disabled?: boolean
@@ -269,6 +424,7 @@ function SlideItem({
   onRemove,
   onImageUpload,
   onVideoUpload,
+  onAiImage,
   isUploading,
   uploadType,
   disabled = false,
@@ -402,6 +558,24 @@ function SlideItem({
                   </SelectContent>
                 </Select>
 
+                {slide.media.type === "none" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                    onClick={() => {
+                      if (disabled || isUploading) return
+                      handleMediaTypeChange("image")
+                      onAiImage()
+                    }}
+                    disabled={disabled || isUploading}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate AI Image
+                  </Button>
+                )}
+
                 {slide.media.type !== "none" && (
                   <div className="flex items-center gap-2">
                     <Label
@@ -428,6 +602,25 @@ function SlideItem({
                       disabled={disabled || isUploading}
                       className="hidden"
                     />
+                    {slide.media.type === "image" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                        onClick={() => {
+                          if (disabled || isUploading) return
+                          if (slide.media.type === "none") {
+                            handleMediaTypeChange("image")
+                          }
+                          onAiImage()
+                        }}
+                        disabled={disabled || isUploading}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate
+                      </Button>
+                    )}
                     {isUploading && uploadType === slide.media.type && (
                       <Loader2 className="h-4 w-4 animate-spin text-[#65B32E]" />
                     )}
@@ -439,10 +632,10 @@ function SlideItem({
               {slide.media.type !== "none" && slide.media.url && (
                 <div className="mt-2">
                   {slide.media.type === "image" ? (
-                    <img
+                    <SlideImageFrame
                       src={slide.media.url}
-                      alt="Slide media"
-                      className="max-w-full h-auto max-h-64 rounded-md border border-[#65B32E]/20"
+                      title={slide.title}
+                      className="border border-[#65B32E]/20"
                     />
                   ) : (
                     <video
@@ -504,7 +697,7 @@ function SlidePreview({ slide }: { slide: Slide }) {
       {slide.media.type !== "none" && slide.media.url && (
         <div className="mt-4">
           {slide.media.type === "image" ? (
-            <img src={slide.media.url} alt="Preview" className="max-w-full h-auto rounded-md" />
+            <SlideImageFrame src={slide.media.url} title={slide.title} className="border border-[#65B32E]/20" />
           ) : (
             <video src={slide.media.url} controls className="max-w-full h-auto rounded-md">
               Your browser does not support the video tag.

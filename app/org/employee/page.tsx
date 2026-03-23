@@ -49,8 +49,10 @@ import { isSuperAdmin } from "@/lib/permissions"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getUserFullName } from "@/lib/utils/user"
+import { useRouter } from "next/navigation"
 
 export default function EmployeePage() {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [openInvite, setOpenInvite] = useState(false)
   const [openEnroll, setOpenEnroll] = useState(false)
@@ -86,6 +88,18 @@ export default function EmployeePage() {
 
   const employees = membersResponse?.data || []
   const courses = coursesResponse?.data || []
+
+  const { data: subscriptionCheck } = useQuery({
+    queryKey: ["subscription-check", organizationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/subscriptions/check?organizationId=${organizationId}`)
+      return res.json()
+    },
+    enabled: !!organizationId,
+  })
+
+  const isFreePlan = subscriptionCheck?.subscription?.plan === "free"
+  const freeInviteLimitReached = isFreePlan && employees.length >= 3
 
   // Prepare options for react-select
   const courseOptions = useMemo(() => {
@@ -646,10 +660,27 @@ export default function EmployeePage() {
             }}
           >
             <DialogTrigger asChild>
-              <Button className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
-                <Mail size={16} className="mr-2" />
-                Invite Member
-              </Button>
+              {freeInviteLimitReached ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-[#DE1915]/30 text-[#DE1915] hover:bg-[#DE1915]/5"
+                  onClick={() => {
+                    toast.error("Free plan limit reached", {
+                      description: "You can only invite up to 2 members on the Free plan. Upgrade to invite more.",
+                    })
+                    router.push("/settings/subscription")
+                  }}
+                >
+                  <Mail size={16} className="mr-2" />
+                  Invite Member (limit reached)
+                </Button>
+              ) : (
+                <Button className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+                  <Mail size={16} className="mr-2" />
+                  Invite Member
+                </Button>
+              )}
             </DialogTrigger>
             <DialogContent className="bg-white border-[#65B32E]/20">
               <DialogHeader>

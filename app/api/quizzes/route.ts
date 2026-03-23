@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { generateQuizQuestions } from "@/lib/ai"
+import { buildReferenceTextFromLessonSlidesJson } from "@/lib/slide-lesson-reference"
 import { CreateQuizSchema } from "@/lib/validation-schema"
 import { type NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
@@ -40,14 +41,24 @@ export async function POST(request: NextRequest) {
           id: { in: lessonIds },
           courseId: courseId,
         },
-        select: { title: true, content: true },
+        select: { title: true, content: true, slides: true },
         orderBy: { order: "asc" },
       })
-      
-      // Combine lesson title and content for better context
+
+      // Text lessons use `content`; slide lessons use `slides` (Lexical text + optional AI image prompts)
       referenceContent = lessons
-        .filter((l) => l.content)
-        .map((l) => `Lesson: ${l.title}\n\n${l.content}`)
+        .map((l) => {
+          const parts: string[] = []
+          const body = typeof l.content === "string" ? l.content.trim() : ""
+          if (body) parts.push(body)
+          const slideBlock = buildReferenceTextFromLessonSlidesJson(l.slides)
+          if (slideBlock) {
+            parts.push(`Slide deck:\n${slideBlock}`)
+          }
+          if (parts.length === 0) return null
+          return `Lesson: ${l.title}\n\n${parts.join("\n\n")}`
+        })
+        .filter((block): block is string => Boolean(block))
     } else if (resourceIds && Array.isArray(resourceIds) && resourceIds.length > 0) {
       // Fallback to resources if no lessons are selected
       const resources = await prisma.courseResource.findMany({

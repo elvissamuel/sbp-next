@@ -34,6 +34,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })
     }
 
+    // Enforce Free tier member limit: max 3 total members (owner + 2 invited)
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: {
+        organizationId,
+        status: "active",
+        currentPeriodEnd: {
+          gte: new Date(),
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    if (activeSubscription?.plan === "free") {
+      const memberCount = await prisma.organizationMember.count({
+        where: { organizationId },
+      })
+      if (memberCount >= 3) {
+        return NextResponse.json(
+          { error: "Free plan limit reached: you can only have up to 3 organization members (you + 2 invited)." },
+          { status: 403 }
+        )
+      }
+    }
+
     // Check if requester is a superadmin (only superadmin can assign admin role)
     if (role === "admin" && requesterUserId) {
       const requesterMember = await prisma.organizationMember.findUnique({
