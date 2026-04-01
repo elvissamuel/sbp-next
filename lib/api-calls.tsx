@@ -4,7 +4,6 @@ import { testimonyFormSchema, SignInSchema, CreateCourseSchema, CreateLessonSche
 import { User, Course } from "@prisma/client";
 
 
-
 async function handleValidationResponse (response: Response) {
   const issues = await response.json() as IValidationError[];
   const data = await response.json() as { error: { code: string; message: string; path: string[] }[] };
@@ -196,14 +195,33 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
 
   // Upload video file to Vercel Blob storage
   export const uploadVideo = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
-    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    const formData = new FormData();
-    formData.append("file", file);
-    
-    return handleApiCalls(await fetch(`${baseUrl}/api/lessons/upload-video`, {
-      method: "POST",
-      body: formData,
-    }));
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+      const handleUploadUrl = `${baseUrl}/api/lessons/upload-video`;
+
+      const { upload } = await import("@vercel/blob/client");
+
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl,
+      });
+
+      return {
+        data: {
+          url: blob.url,
+          fileName: file.name,
+          fileSize: file.size,
+          contentType: file.type,
+        },
+      };
+    } catch (error) {
+      return {
+        error: {
+          message: error instanceof Error ? error.message : "Failed to upload video",
+          name: "ApiError",
+        },
+      };
+    }
   };
 
   // Upload image file to Vercel Blob storage
