@@ -79,18 +79,20 @@ export const CreateLessonSchema = z
     content: z.string().optional(), // Optional if slides are provided
     slides: SlidesSchema.optional(), // Optional slides structure
     videoUrl: z.string().optional(), // Optional video URL
+    reflectionQuestion: z.string().optional(),
     status: z.enum(["draft", "published"]).optional(), // Optional status
     resourceIds: z.array(z.string()).optional(), // Optional array of resource IDs to reference
   })
   .refine(
     (data) => {
-      // Either content or slides must be provided
+      // Either content, slides, or video must be provided
       const hasContent = data.content && data.content.trim().length > 0
       const hasSlides = data.slides && data.slides.slides && data.slides.slides.length > 0
-      return hasContent || hasSlides
+      const hasVideo = data.videoUrl && data.videoUrl.trim().length > 0
+      return hasContent || hasSlides || hasVideo
     },
     {
-      message: "Either content or slides must be provided",
+      message: "Either content, slides, or video must be provided",
       path: ["content"],
     }
   )

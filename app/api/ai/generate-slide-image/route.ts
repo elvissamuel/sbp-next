@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { SLIDE_IMAGE_AI_HEIGHT, SLIDE_IMAGE_AI_WIDTH } from "@/lib/slide-presentation"
 
 export const runtime = "nodejs"
 
@@ -35,6 +36,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Body
     const prompt = (body.prompt || "").trim()
+
+    const width = SLIDE_IMAGE_AI_WIDTH
+    const height = SLIDE_IMAGE_AI_HEIGHT
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
@@ -101,8 +105,8 @@ export async function POST(request: NextRequest) {
           version: versionId,
           input: {
             prompt,
-            width: body.width,
-            height: body.height,
+            width,
+            height,
           },
         }),
       })
@@ -183,8 +187,8 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           prompt,
-          width: body.width,
-          height: body.height,
+          width,
+          height,
         }),
       })
 

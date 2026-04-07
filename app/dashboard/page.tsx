@@ -5,10 +5,8 @@ import { useQuery } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, PlayCircle, CheckCircle2, Loader2 } from "lucide-react"
+import { BookOpen, Loader2 } from "lucide-react"
 import { getUserEnrollments, type EnrollmentWithCourse } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
 import { getUserFullName } from "@/lib/utils/user"
@@ -56,201 +54,170 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 bg-white">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-[#65B32E]">Welcome back {getUserFullName(currentUser?.firstName, currentUser?.lastName, currentUser?.name)}</h1>
-          <p className="text-muted-foreground">Continue your learning journey</p>
-        </div>
+      <div className="space-y-6 bg-white">
+        <Card className="border-0 rounded-xl overflow-hidden">
+          <div className="relative bg-gradient-to-r from-[#2C6B5B] to-[#3A8B73] px-6 py-8">
+            <div className="absolute right-0 top-0 h-full w-40 opacity-25">
+              <div className="absolute right-6 top-6 h-16 w-16 rounded-xl bg-white/20" />
+              <div className="absolute right-14 top-16 h-16 w-16 rounded-xl bg-white/20" />
+              <div className="absolute right-2 top-20 h-16 w-16 rounded-xl bg-white/20" />
+              <div className="absolute right-10 top-32 h-16 w-16 rounded-xl bg-white/20" />
+            </div>
+            <div className="relative">
+              <p className="text-white/80 text-sm">Welcome</p>
+              <h1 className="text-white text-2xl font-semibold leading-tight">
+                {getUserFullName(currentUser?.firstName, currentUser?.lastName, currentUser?.name)}
+              </h1>
+              <p className="text-white/80 text-xs mt-1">Continue with your learning</p>
+            </div>
+          </div>
+        </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-border/50 bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-[#65B32E]">Active Courses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#65B32E]">
-                {isLoading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-[#65B32E]" />
-                ) : (
-                  enrolledCourses.filter((c) => c.status === "in-progress").length
-                )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="rounded-lg border-0 bg-[#FFF4E8]">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-medium text-[#F97316]">Active</p>
+              <div className="mt-2 text-2xl font-semibold text-[#111827]">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#F97316]" /> : enrolledCourses.filter((c) => c.status === "in-progress").length}
               </div>
-              <p className="text-xs text-muted-foreground">courses in progress</p>
+              <p className="text-[10px] text-muted-foreground">courses in progress</p>
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-[#DE1915]">Completed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#DE1915]">
-                {isLoading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-[#DE1915]" />
-                ) : (
-                  enrolledCourses.filter((c) => c.status === "completed").length
-                )}
+          <Card className="rounded-lg border-0 bg-[#E9FBEF]">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-medium text-[#22C55E]">Completed</p>
+              <div className="mt-2 text-2xl font-semibold text-[#111827]">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /> : enrolledCourses.filter((c) => c.status === "completed").length}
               </div>
-              <p className="text-xs text-muted-foreground">courses completed</p>
+              <p className="text-[10px] text-muted-foreground">courses completed</p>
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-[#65B32E]">Avg Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#65B32E]">
+          <Card className="rounded-lg border-0 bg-[#EAF4FF]">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-medium text-[#3B82F6]">Average Progress</p>
+              <div className="mt-2 text-2xl font-semibold text-[#111827]">
                 {isLoading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-[#65B32E]" />
+                  <Loader2 className="h-5 w-5 animate-spin text-[#3B82F6]" />
                 ) : enrolledCourses.length > 0 ? (
                   `${Math.round(enrolledCourses.reduce((acc, c) => acc + c.progress, 0) / enrolledCourses.length)}%`
                 ) : (
                   "0%"
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">across all courses</p>
+              <p className="text-[10px] text-muted-foreground">across all course</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Courses */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-[#65B32E]">Your Courses</h2>
-            {/* <Button asChild variant="outline" size="sm">
-              <Link href="/course">Browse More</Link>
-            </Button> */}
-          </div>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-[#111827]">Your Courses</h2>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-[#65B32E]" />
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-7 w-7 animate-spin text-[#2C6B5B]" />
               <span className="ml-2 text-sm text-muted-foreground">Loading your courses...</span>
             </div>
           ) : enrolledCourses.length === 0 ? (
-            <Card className="border-border/50 bg-white">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <BookOpen className="h-12 w-12 text-[#65B32E] mb-4" />
-                <h3 className="text-lg font-semibold text-[#65B32E] mb-2">No courses displayed</h3>
-                <p className="text-sm text-muted-foreground text-center mb-4">
+            <Card className="border border-border/40 rounded-lg">
+              <CardContent className="flex flex-col items-center justify-center py-10">
+                <BookOpen className="h-10 w-10 text-[#2C6B5B] mb-4" />
+                <h3 className="text-base font-semibold text-[#111827] mb-2">No courses displayed</h3>
+                <p className="text-xs text-muted-foreground text-center mb-4 max-w-md">
                   There are no courses displayed because you have not been enrolled in any course yet. Browse available courses and enroll to get started with your learning journey.
                 </p>
-                <Button asChild className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+                <Button asChild className="bg-[#2C6B5B] hover:bg-[#2C6B5B]/90 text-white rounded-md h-9 px-6">
                   <Link href="/course">Browse Courses</Link>
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <Tabs defaultValue="in-progress" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-white border border-[#65B32E]/20">
-                <TabsTrigger value="in-progress" className="data-[state=active]:bg-[#65B32E] data-[state=active]:text-white text-[#65B32E]">
-                  In Progress ({enrolledCourses.filter((c) => c.status === "in-progress").length})
+              <TabsList className="grid w-full grid-cols-2 rounded-md bg-[#F3F4F6] p-1 h-10">
+                <TabsTrigger
+                  value="in-progress"
+                  className="rounded-md data-[state=active]:bg-[#0F766E] data-[state=active]:text-white text-muted-foreground"
+                >
+                  In progress
                 </TabsTrigger>
-                <TabsTrigger value="completed" className="data-[state=active]:bg-[#DE1915] data-[state=active]:text-white text-[#DE1915]">
-                  Completed ({enrolledCourses.filter((c) => c.status === "completed").length})
+                <TabsTrigger
+                  value="completed"
+                  className="rounded-md data-[state=active]:bg-white data-[state=active]:text-muted-foreground text-muted-foreground"
+                >
+                  Completed
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="in-progress" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <TabsContent value="in-progress" className="mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {enrolledCourses
                     .filter((c) => c.status === "in-progress")
+                    .slice(0, 6)
                     .map((course) => (
-                    <Card
-                      key={course.id}
-                      className="overflow-hidden border-border/50 hover:border-[#65B32E]/50 transition-colors bg-white"
-                    >
-                      <div className="aspect-video bg-muted overflow-hidden">
-                        <img
-                          src={course.banner || "/placeholder.svg"}
-                          alt={course.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <CardHeader>
-                        <CardTitle className="text-base line-clamp-2 text-[#65B32E]">{course.title}</CardTitle>
-                        <CardDescription>
-                          {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "No lessons yet"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="font-medium text-[#65B32E]">{course.progress}%</span>
-                          </div>
-                          <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#65B32E]/20">
-                            <div 
-                              className="h-full bg-[#65B32E] transition-all"
-                              style={{ width: `${course.progress}%` }}
-                            />
+                      <Card key={course.id} className="rounded-lg border border-border/40 overflow-hidden">
+                        <div className="bg-[#111827]">
+                          <div className="aspect-[16/7] opacity-90">
+                            <img src={course.banner || "/placeholder.svg"} alt={course.title} className="w-full h-full object-cover" />
                           </div>
                         </div>
-                        <Button asChild size="sm" className="w-full bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
-                          <Link href={`/classroom/course/${course.id}`}>
-                            <PlayCircle size={16} className="mr-2" />
-                            Continue
-                          </Link>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                    ))}
-                </div>
-                {enrolledCourses.filter((c) => c.status === "in-progress").length === 0 && (
-                  <Card className="border-border/50 bg-white">
-                    <CardContent className="flex flex-col items-center justify-center py-8">
-                      <p className="text-sm text-muted-foreground">No courses in progress</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="completed" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {enrolledCourses
-                    .filter((c) => c.status === "completed")
-                    .map((course) => (
-                      <Card key={course.id} className="overflow-hidden border-border/50 bg-white hover:border-[#DE1915]/50 transition-colors">
-                        <div className="aspect-video bg-muted overflow-hidden">
-                          <img
-                            src={course.banner || "/placeholder.svg"}
-                            alt={course.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-base line-clamp-2 text-[#DE1915]">{course.title}</CardTitle>
-                            <Badge className="flex-shrink-0 bg-[#DE1915] text-white border-[#DE1915]">
-                              <CheckCircle2 size={12} className="mr-1" />
-                              Complete
-                            </Badge>
+                        <CardContent className="p-4 space-y-3">
+                          <div>
+                            <div className="inline-flex items-center rounded-sm bg-[#E5F6EE] px-2 py-1 text-[10px] font-medium text-[#0F766E]">
+                              IN PROGRESS
+                            </div>
+                            <h3 className="mt-2 text-sm font-semibold text-[#111827] leading-snug line-clamp-2">{course.title}</h3>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "0 of 0 lessons"}
+                            </p>
                           </div>
-                          <CardDescription>
-                            {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "Course completed"}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button asChild size="sm" className="w-full border-[#DE1915] text-[#DE1915] hover:bg-[#DE1915] hover:text-white" variant="outline">
-                            <Link href={`/classroom/course/${course.id}`}>
-                              <BookOpen size={16} className="mr-2" />
-                              Review
-                            </Link>
+                          <div>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-muted-foreground">Progress</span>
+                              <span className="text-muted-foreground">{course.progress}%</span>
+                            </div>
+                            <div className="mt-2 h-1.5 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                              <div className="h-full bg-[#0F766E]" style={{ width: `${course.progress}%` }} />
+                            </div>
+                          </div>
+                          <Button asChild className="w-full h-9 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white text-xs">
+                            <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
                           </Button>
                         </CardContent>
                       </Card>
                     ))}
                 </div>
-                {enrolledCourses.filter((c) => c.status === "completed").length === 0 && (
-                  <Card className="border-border/50 bg-white">
-                    <CardContent className="flex flex-col items-center justify-center py-8">
-                      <p className="text-sm text-muted-foreground">No completed courses yet</p>
-                    </CardContent>
-                  </Card>
-                )}
+              </TabsContent>
+
+              <TabsContent value="completed" className="mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {enrolledCourses
+                    .filter((c) => c.status === "completed")
+                    .slice(0, 6)
+                    .map((course) => (
+                      <Card key={course.id} className="rounded-lg border border-border/40 overflow-hidden">
+                        <div className="bg-[#111827]">
+                          <div className="aspect-[16/7] opacity-90">
+                            <img src={course.banner || "/placeholder.svg"} alt={course.title} className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                        <CardContent className="p-4 space-y-3">
+                          <div>
+                            <div className="inline-flex items-center rounded-sm bg-[#F3F4F6] px-2 py-1 text-[10px] font-medium text-[#6B7280]">
+                              COMPLETED
+                            </div>
+                            <h3 className="mt-2 text-sm font-semibold text-[#111827] leading-snug line-clamp-2">{course.title}</h3>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "Course completed"}
+                            </p>
+                          </div>
+                          <Button asChild className="w-full h-9 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white text-xs">
+                            <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
               </TabsContent>
             </Tabs>
           )}

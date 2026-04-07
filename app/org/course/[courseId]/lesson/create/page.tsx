@@ -53,6 +53,7 @@ export default function CreateLessonPage() {
       title: "",
       content: "",
       videoUrl: "",
+      reflectionQuestion: "",
       resourceIds: [],
       slides: undefined,
     },
@@ -496,10 +497,24 @@ export default function CreateLessonPage() {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="reflectionQuestion">Lesson Question (Optional)</Label>
+                <Textarea
+                  id="reflectionQuestion"
+                  {...form.register("reflectionQuestion")}
+                  placeholder="Optional: Ask a question learners must answer before they can proceed to the next lesson"
+                  disabled={createLessonMutation.isPending || isGenerating || isExtracting}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  If provided, learners will be prompted to answer this question when they click Next Lesson.
+                </p>
+              </div>
+
               {/* Content Input */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="content">Lesson Content *</Label>
+                  <Label htmlFor="content">Lesson Content</Label>
                   {contentMode === "ai" && (
                     <Button
                       type="button"

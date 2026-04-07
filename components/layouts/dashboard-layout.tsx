@@ -5,11 +5,12 @@ import type React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LogOut, Settings, User, Menu, X } from "lucide-react"
+import { Bell, ChevronDown, LogOut, Menu, Settings, User, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { clearSession, getPrimaryOrganization, getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,7 +109,7 @@ export function DashboardLayout({
     <div className="min-h-screen bg-white">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-[#65B32E]/20 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-[#65B32E]/20 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         <div className="p-6 border-b border-[#65B32E]/20">
           <Link href="/" className="flex items-center gap-2">
@@ -167,45 +168,68 @@ export function DashboardLayout({
       {/* Main content */}
       <div className="flex-1 flex flex-col md:ml-64">
         <header className="border-b border-[#65B32E]/20 bg-white sticky top-0 z-20">
-          <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <button className="md:hidden p-2 hover:bg-[#65B32E]/10 rounded-md text-[#65B32E]" onClick={() => setSidebarOpen(!sidebarOpen)}>
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+          <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1">
+              <button
+                className="md:hidden p-2 hover:bg-[#65B32E]/10 rounded-md text-[#65B32E]"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
 
-            <h1 className="text-lg font-semibold text-[#65B32E] flex-1 text-center md:text-left">{pageTitle}</h1>
+              <div className="max-w-[260px] w-full">
+                <Input
+                  placeholder="Search"
+                  className="h-8 rounded-sm bg-white border border-border/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+              </div>
+            </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="rounded-full">
-                  <div className="w-8 h-8 bg-[#65B32E] rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {userInitials}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                aria-label="Notifications"
+              >
+                <Bell size={16} />
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 rounded-sm hover:bg-muted">
+                    <div className="w-7 h-7 bg-[#65B32E] rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                      {userInitials}
+                    </div>
+                    <span className="ml-2 text-sm text-foreground hidden sm:inline">{userFullName}</span>
+                    <ChevronDown size={14} className="ml-1 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-white border border-[#65B32E]/20">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium text-[#65B32E]">{displayEmail}</p>
                   </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-white border border-[#65B32E]/20">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium text-[#65B32E]">{displayEmail}</p>
-                </div>
-                <DropdownMenuSeparator className="bg-[#65B32E]/20" />
-                <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10 focus:bg-[#65B32E]/10">
-                  <Link href="/profile" className="cursor-pointer text-foreground">
-                    <User size={16} className="mr-2 text-[#65B32E]" />
-                    Profile Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10 focus:bg-[#65B32E]/10">
-                  <Link href="/settings/billing" className="cursor-pointer text-foreground">
-                    <Settings size={16} className="mr-2 text-[#65B32E]" />
-                    Billing
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-[#65B32E]/20" />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-[#DE1915]/10 focus:bg-[#DE1915]/10 text-[#DE1915]">
-                  <LogOut size={16} className="mr-2" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuSeparator className="bg-[#65B32E]/20" />
+                  <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10 focus:bg-[#65B32E]/10">
+                    <Link href="/profile" className="cursor-pointer text-foreground">
+                      <User size={16} className="mr-2 text-[#65B32E]" />
+                      Profile Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10 focus:bg-[#65B32E]/10">
+                    <Link href="/settings/billing" className="cursor-pointer text-foreground">
+                      <Settings size={16} className="mr-2 text-[#65B32E]" />
+                      Billing
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-[#65B32E]/20" />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-[#DE1915]/10 focus:bg-[#DE1915]/10 text-[#DE1915]">
+                    <LogOut size={16} className="mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 

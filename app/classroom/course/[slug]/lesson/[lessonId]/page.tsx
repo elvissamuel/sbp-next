@@ -6,14 +6,23 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { CheckCircle2, Circle, ChevronLeft, ChevronRight, Loader2, HelpCircle, FileText, Clock } from "lucide-react"
+import { ChevronLeft, Loader2 } from "lucide-react"
 import { getLesson, getCourseBySlug, type Lesson, type Quiz } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
-import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { TextToSpeech } from "@/components/text-to-speech"
 import { SlideViewer } from "@/components/lesson/slide-viewer"
+import { useEffect, useMemo, useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { ENABLE_SLIDES } from "@/lib/slide-presentation"
 
 export default function ClassroomLessonView() {
   const params = useParams()
@@ -98,6 +107,28 @@ export default function ClassroomLessonView() {
   // Calculate lesson position among lessons only (for display)
   const lessonOnlyIndex = lessons.findIndex((l: Lesson) => l.id === lessonId)
 
+  const hasSlides =
+    ENABLE_SLIDES && !!(lesson?.slides && lesson.slides.slides && lesson.slides.slides.length > 0)
+  const hasVideo = !!lesson?.videoUrl
+  const hasText = !!lesson?.content
+
+  type ViewMode = "speech" | "slide" | "video"
+
+  const defaultMode: ViewMode = useMemo(() => {
+    if (hasSlides) return "slide"
+    if (hasVideo) return "video"
+    return "speech"
+  }, [hasSlides, hasVideo])
+
+  const [viewMode, setViewMode] = useState<ViewMode>(defaultMode)
+
+  const [isReflectionOpen, setIsReflectionOpen] = useState(false)
+  const [reflectionAnswer, setReflectionAnswer] = useState("")
+
+  useEffect(() => {
+    setViewMode(defaultMode)
+  }, [defaultMode, lessonId])
+
   // Mark lesson as complete mutation
   const markCompleteMutation = useMutation({
     mutationFn: async () => {
@@ -141,6 +172,24 @@ export default function ClassroomLessonView() {
       toast.error("Please log in to mark lessons as complete")
       return
     }
+
+    const question = (lesson?.reflectionQuestion || "").trim()
+    if (question) {
+      setIsReflectionOpen(true)
+      return
+    }
+
+    markCompleteMutation.mutate()
+  }
+
+  const handleSubmitReflection = () => {
+    if (!reflectionAnswer.trim()) {
+      toast.error("Please provide an answer before continuing")
+      return
+    }
+
+    setIsReflectionOpen(false)
+    setReflectionAnswer("")
     markCompleteMutation.mutate()
   }
 
@@ -171,345 +220,208 @@ export default function ClassroomLessonView() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-        {/* Header Bar */}
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-[#65B32E]/20 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="text-muted-foreground hover:text-[#65B32E]"
-                >
-                  <Link href={`/classroom/course/${slug}`}>
-                    <ChevronLeft size={18} className="mr-1" />
-                    Back to Course
-                  </Link>
-                </Button>
-                <div className="h-6 w-px bg-border" />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Lesson {lessonOnlyIndex >= 0 ? lessonOnlyIndex + 1 : "?"} of {lessons.length}
-                  </span>
-                  {isCurrentLessonCompleted && (
-                    <CheckCircle2 size={16} className="text-[#65B32E]" />
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {previousItem && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="text-muted-foreground hover:text-[#65B32E]"
-                  >
-                    <Link href={
-                      previousItem.type === "lesson"
-                        ? `/classroom/course/${slug}/lesson/${previousItem.id}`
-                        : `/classroom/course/${slug}/quiz/${previousItem.id}`
-                    }>
-                      <ChevronLeft size={18} />
-                    </Link>
-                  </Button>
-                )}
-                {nextItem && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="text-muted-foreground hover:text-[#65B32E]"
-                    disabled={!isCurrentLessonCompleted}
-                  >
-                    <Link href={
-                      nextItem.type === "lesson"
-                        ? `/classroom/course/${slug}/lesson/${nextItem.id}`
-                        : `/classroom/course/${slug}/quiz/${nextItem.id}`
-                    }>
-                      <ChevronRight size={18} />
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-[calc(100vh-64px)] bg-[#FAFAFA]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            <Dialog open={isReflectionOpen} onOpenChange={setIsReflectionOpen}>
+              <DialogContent className="bg-white">
+                <DialogHeader>
+                  <DialogTitle>Quick Question</DialogTitle>
+                  <DialogDescription>
+                    Answer the question below to continue to the next lesson.
+                  </DialogDescription>
+                </DialogHeader>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid lg:grid-cols-12 gap-8">
-            {/* Main Content - Modern Presentation Style */}
-            <div className="lg:col-span-8 space-y-6">
-              {/* Lesson Title */}
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-gray-900 leading-tight">
-                  {lesson.title}
-                </h1>
-              </div>
-
-              {/* Video Player */}
-              {lesson.videoUrl && (
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-black border-2 border-[#65B32E]/30">
-                  <div className="aspect-video w-full">
-                    <video
-                      controls
-                      className="w-full h-full"
-                      src={lesson.videoUrl}
-                      preload="metadata"
-                    >
-                      Your browser does not support the video tag.
-                    </video>
+                <div className="space-y-3">
+                  <div className="text-sm text-foreground whitespace-pre-wrap">
+                    {lesson.reflectionQuestion}
                   </div>
-                </div>
-              )}
-
-              {/* Slide-based Lesson */}
-              {lesson.slides && lesson.slides.slides && lesson.slides.slides.length > 0 ? (
-                <div className="bg-white rounded-2xl shadow-xl border-2 border-[#65B32E]/20 overflow-visible p-1">
-                  <SlideViewer
-                    slides={lesson.slides.slides}
-                    onComplete={handleMarkComplete}
+                  <Textarea
+                    value={reflectionAnswer}
+                    onChange={(e) => setReflectionAnswer(e.target.value)}
+                    placeholder="Type your answer..."
+                    rows={4}
                   />
                 </div>
-              ) : (
-                /* Text-based Lesson - Modern Card Design */
-                <div className="bg-white rounded-2xl shadow-xl border-2 border-[#65B32E]/20 overflow-hidden">
-                  <div className="p-8 md:p-12">
-                    {/* Text to Speech Controls */}
-                    <div className="flex justify-end mb-6">
-                      <TextToSpeech text={lesson.content || ""} compact />
-                    </div>
-                    
-                    {/* Content with modern typography */}
-                    <div className="prose prose-lg max-w-none">
-                      <div className="space-y-6 text-gray-700 leading-relaxed">
-                        {lesson.content?.split("\n").map((line, i) => {
-                          if (line.startsWith("# ")) {
-                            return (
-                              <h2 key={i} className="text-3xl font-bold mt-8 mb-4 text-[#65B32E] first:mt-0">
-                                {line.replace("# ", "")}
-                              </h2>
-                            )
-                          }
-                          if (line.startsWith("## ")) {
-                            return (
-                              <h3 key={i} className="text-2xl font-semibold mt-6 mb-3 text-[#65B32E]">
-                                {line.replace("## ", "")}
-                              </h3>
-                            )
-                          }
-                          if (line.startsWith("### ")) {
-                            return (
-                              <h4 key={i} className="text-xl font-semibold mt-4 mb-2 text-[#65B32E]">
-                                {line.replace("### ", "")}
-                              </h4>
-                            )
-                          }
-                          if (line.startsWith("- ") || line.startsWith("* ")) {
-                            return (
-                              <li key={i} className="ml-6 text-gray-700 list-disc text-lg">
-                                {line.replace(/^[-*] /, "")}
-                              </li>
-                            )
-                          }
-                          if (line.trim().startsWith("```")) {
-                            return <br key={i} />
-                          }
-                          if (line.trim()) {
-                            return (
-                              <p key={i} className="text-lg text-gray-700 mb-4 leading-relaxed">
-                                {line}
-                              </p>
-                            )
-                          }
-                          return <br key={i} />
-                        })}
-                      </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsReflectionOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSubmitReflection} disabled={markCompleteMutation.isPending}>
+                    Continue
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <div className="flex items-center justify-center">
+              <div
+                className={`w-full max-w-2xl grid bg-[#EFEFEF] rounded-sm overflow-hidden ${
+                  ENABLE_SLIDES ? "grid-cols-3" : "grid-cols-2"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setViewMode("speech")}
+                  disabled={!hasText}
+                  className={`h-10 text-sm transition ${
+                    viewMode === "speech" ? "bg-[#0F766E] text-white" : "text-muted-foreground"
+                  } ${!hasText ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}`}
+                >
+                  Speech to text
+                </button>
+                {ENABLE_SLIDES && (
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("slide")}
+                    disabled={!hasSlides}
+                    className={`h-10 text-sm transition ${
+                      viewMode === "slide" ? "bg-[#0F766E] text-white" : "text-muted-foreground"
+                    } ${!hasSlides ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}`}
+                  >
+                    Slide
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setViewMode("video")}
+                  disabled={!hasVideo}
+                  className={`h-10 text-sm transition ${
+                    viewMode === "video" ? "bg-[#0F766E] text-white" : "text-muted-foreground"
+                  } ${!hasVideo ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}`}
+                >
+                  video
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Link href={`/classroom/course/${slug}`} className="inline-flex items-center hover:text-foreground">
+                <ChevronLeft size={16} className="mr-1" />
+                Back To Courses
+              </Link>
+            </div>
+
+            <div className="border border-[#CFF3E7] bg-white rounded-sm px-6 py-4">
+              <p className="text-xs text-muted-foreground">
+                {lessonOnlyIndex >= 0 ? lessonOnlyIndex + 1 : "?"} of {lessons.length} lessons
+              </p>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-[#D9D9D9] overflow-hidden">
+                <div
+                  className="h-full bg-[#62C2A3]"
+                  style={{
+                    width:
+                      lessons.length > 0 && lessonOnlyIndex >= 0
+                        ? `${Math.round(((lessonOnlyIndex + 1) / lessons.length) * 100)}%`
+                        : "0%",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <h1 className="text-3xl font-bold text-[#111827] leading-tight">{lesson.title}</h1>
+            </div>
+
+            {viewMode === "slide" && hasSlides && (
+              <div className="space-y-4">
+                <SlideViewer slides={lesson.slides!.slides} onComplete={handleMarkComplete} />
+              </div>
+            )}
+
+            {viewMode === "video" && hasVideo && (
+              <div className="rounded-lg overflow-hidden bg-black">
+                <div className="aspect-video w-full">
+                  <video controls className="w-full h-full" src={lesson.videoUrl!} preload="metadata">
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              </div>
+            )}
+
+            {viewMode === "speech" && hasText && (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <TextToSpeech text={lesson.content || ""} compact />
+                </div>
+                <div className="bg-white rounded-lg border border-border/40 overflow-hidden">
+                  <div className="p-6">
+                    <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+                      {lesson.content?.split("\n").map((line, i) => {
+                        if (line.trim()) {
+                          return (
+                            <p key={i} className="text-sm text-muted-foreground">
+                              {line}
+                            </p>
+                          )
+                        }
+                        return <br key={i} />
+                      })}
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
-                {!isCurrentLessonCompleted && (
+            <div className="pt-2">
+              {!isCurrentLessonCompleted && (
+                <div className="flex justify-end">
                   <Button
-                    size="lg"
-                    className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="h-10 px-10 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white"
                     onClick={handleMarkComplete}
                     disabled={markCompleteMutation.isPending}
                   >
                     {markCompleteMutation.isPending ? (
                       <>
-                        <Loader2 size={20} className="mr-2 animate-spin" />
+                        <Loader2 size={16} className="mr-2 animate-spin" />
                         Marking as Complete...
                       </>
                     ) : (
-                      <>
-                        <CheckCircle2 size={20} className="mr-2" />
-                        Mark as Complete
-                      </>
+                      "Next Lesson"
                     )}
                   </Button>
-                )}
-                {isCurrentLessonCompleted && nextItem && (
-                  <Button
-                    size="lg"
-                    asChild
-                    className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Link href={
-                      nextItem.type === "lesson"
-                        ? `/classroom/course/${slug}/lesson/${nextItem.id}`
-                        : `/classroom/course/${slug}/quiz/${nextItem.id}`
-                    }>
-                      Continue to {nextItem.type === "lesson" ? "Next Lesson" : "Quiz"}
-                      <ChevronRight size={20} className="ml-2" />
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </div>
+                </div>
+              )}
 
-            {/* Sidebar - Modern Course Contents */}
-            <div className="lg:col-span-4">
-              <div className="sticky top-24 space-y-6">
-                {/* Course Info Card */}
-                <Card className="border-2 border-[#65B32E]/20 bg-white shadow-xl">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-xl font-bold text-[#65B32E]">
-                      {course?.title || "Course"}
-                    </CardTitle>
-                    {enrollment && (
-                      <div className="mt-4 space-y-3">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground font-medium">Progress</span>
-                          <span className="font-bold text-[#65B32E] text-lg">{stats.progress}%</span>
-                        </div>
-                        <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div 
-                            className="h-full bg-gradient-to-r from-[#65B32E] to-[#65B32E]/80 transition-all duration-500 rounded-full"
-                            style={{ width: `${stats.progress}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {stats.completedLessons} of {stats.totalLessons} lessons completed
-                        </p>
-                      </div>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-1 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
-                {allContent.map((item, idx) => {
-                  const isLocked = idx > maxAccessibleIndex
-                  if (item.type === "lesson") {
-                    // Find the original lesson index for completion status
-                    const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
-                    const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
-                    const lesson = lessons.find((l: Lesson) => l.id === item.id)
-                    const isActive = item.id === lessonId
-                    
-                    const content = (
-                      <div
-                        className={`flex items-start gap-3 p-3 rounded-lg transition-all group ${
-                          isActive
-                            ? "bg-gradient-to-r from-[#65B32E]/10 to-[#65B32E]/5 border-2 border-[#65B32E] shadow-md"
-                            : isLocked
-                            ? "opacity-50 cursor-not-allowed"
-                            : "hover:bg-[#65B32E]/5 hover:border hover:border-[#65B32E]/20 border border-transparent"
-                        }`}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          {isCompleted ? (
-                            <CheckCircle2 size={20} className="text-[#65B32E]" />
-                          ) : (
-                            <Circle size={20} className="text-gray-400" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold transition line-clamp-2 ${
-                            isActive ? "text-[#65B32E]" : "text-gray-700 group-hover:text-[#65B32E]"
-                          }`}>
-                            {item.title}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-xs font-medium text-gray-500">
-                              Lesson {lesson?.order !== undefined ? lesson.order + 1 : ''}
-                            </span>
-                            {item.duration && (
-                              <>
-                                <span className="text-xs text-gray-400">•</span>
-                                <div className="flex items-center gap-1">
-                                  <Clock size={12} className="text-gray-400" />
-                                  <span className="text-xs text-gray-500">{item.duration} min</span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-
-                    if (isLocked) {
-                      return <div key={item.id}>{content}</div>
-                    }
-
-                    return (
+              {isCurrentLessonCompleted && (
+                <div className="flex items-center justify-between gap-4">
+                  {previousItem ? (
+                    <Button
+                      asChild
+                      className="h-10 px-10 rounded-md bg-[#E5E7EB] hover:bg-[#E5E7EB]/90 text-[#111827]"
+                    >
                       <Link
-                        key={item.id}
-                        href={`/classroom/course/${slug}/lesson/${item.id}`}
-                        className="block"
+                        href={
+                          previousItem.type === "lesson"
+                            ? `/classroom/course/${slug}/lesson/${previousItem.id}`
+                            : `/classroom/course/${slug}/quiz/${previousItem.id}`
+                        }
                       >
-                        {content}
+                        Previous lesson
                       </Link>
-                    )
-                  } else {
-                    // Quiz item
-                    const isActive = item.id === lessonId
-                    const content = (
-                      <div
-                        className={`flex items-start gap-3 p-3 rounded-lg transition-all group ${
-                          isActive
-                            ? "bg-gradient-to-r from-[#65B32E]/10 to-[#65B32E]/5 border-2 border-[#65B32E] shadow-md"
-                            : isLocked
-                            ? "opacity-50 cursor-not-allowed"
-                            : "hover:bg-[#65B32E]/5 hover:border hover:border-[#65B32E]/20 border border-transparent"
-                        }`}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          <HelpCircle size={20} className="text-[#65B32E]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold transition line-clamp-2 ${
-                            isActive ? "text-[#65B32E]" : "text-gray-700 group-hover:text-[#65B32E]"
-                          }`}>
-                            {item.title}
-                          </p>
-                          <p className="text-xs font-medium text-gray-500 mt-1.5">Quiz</p>
-                        </div>
-                      </div>
-                    )
+                    </Button>
+                  ) : (
+                    <div />
+                  )}
 
-                    if (isLocked) {
-                      return <div key={item.id}>{content}</div>
-                    }
-
-                    return (
+                  {nextItem ? (
+                    <Button asChild className="h-10 px-16 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white">
                       <Link
-                        key={item.id}
-                        href={`/classroom/course/${slug}/quiz/${item.id}`}
-                        className="block"
+                        href={
+                          nextItem.type === "lesson"
+                            ? `/classroom/course/${slug}/lesson/${nextItem.id}`
+                            : `/classroom/course/${slug}/quiz/${nextItem.id}`
+                        }
                       >
-                        {content}
+                        Next Lesson
                       </Link>
-                    )
-                  }
-                })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </Button>
+                  ) : (
+                    <div />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
