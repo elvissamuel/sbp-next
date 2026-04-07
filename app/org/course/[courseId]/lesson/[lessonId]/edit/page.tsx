@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getLesson, updateLesson, deleteLesson } from "@/lib/api-calls"
-import { MarkdownEditor } from "@/components/markdown-editor"
+import { JoditLessonEditor } from "@/components/jodit-editor"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import {
@@ -45,15 +45,16 @@ export default function EditLessonPage() {
     queryKey: ["lesson", lessonId],
     queryFn: () => getLesson(lessonId),
     enabled: !!lessonId,
-    onSuccess: (response) => {
-      if (response.data) {
-        setFormData({
-          title: response.data.title,
-          content: response.data.content,
-        })
-      }
-    },
   })
+
+  useEffect(() => {
+    if (lessonResponse?.data) {
+      setFormData({
+        title: lessonResponse.data.title,
+        content: lessonResponse.data.content,
+      })
+    }
+  }, [lessonResponse?.data])
 
   const lesson = lessonResponse?.data
 
@@ -186,14 +187,12 @@ export default function EditLessonPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                <MarkdownEditor
+                <JoditLessonEditor
                   value={formData.content}
                   onChange={(value) => setFormData((prev) => ({ ...prev, content: value }))}
-                  placeholder="Enter lesson content... (Markdown supported)"
-                  rows={15}
                   disabled={updateLessonMutation.isPending}
                 />
-                <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
+                <p className="text-xs text-muted-foreground">Supports rich text formatting.</p>
               </div>
 
               <div className="flex gap-3">

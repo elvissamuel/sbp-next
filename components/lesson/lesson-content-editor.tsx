@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MarkdownEditor } from "@/components/markdown-editor"
+import { JoditLessonEditor } from "@/components/jodit-editor"
 import { SlideEditor } from "./slide-editor"
 import { type Slide } from "@/lib/api-calls"
 import { FileText, Presentation } from "lucide-react"
@@ -43,14 +43,12 @@ export function LessonContentEditor({
   if (!ENABLE_SLIDES) {
     return (
       <div className="space-y-2">
-        <MarkdownEditor
+        <JoditLessonEditor
           value={content}
           onChange={handleContentChange}
-          placeholder="Enter lesson content... (Markdown supported)"
-          rows={15}
           disabled={disabled}
         />
-        <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
+        <p className="text-xs text-muted-foreground">Supports rich text formatting.</p>
       </div>
     )
   }
@@ -69,14 +67,12 @@ export function LessonContentEditor({
       </TabsList>
       <TabsContent value="text" className="mt-4">
         <div className="space-y-2">
-          <MarkdownEditor
+          <JoditLessonEditor
             value={content}
             onChange={handleContentChange}
-            placeholder="Enter lesson content... (Markdown supported)"
-            rows={15}
             disabled={disabled}
           />
-          <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
+          <p className="text-xs text-muted-foreground">Supports rich text formatting.</p>
         </div>
       </TabsContent>
       <TabsContent value="slides" className="mt-4 space-y-3">

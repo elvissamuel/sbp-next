@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { updateLesson, getLesson, type Lesson } from "@/lib/api-calls"
 import { toast } from "sonner"
-import { MarkdownEditor } from "@/components/markdown-editor"
+import { JoditLessonEditor } from "@/components/jodit-editor"
 
 const EditLessonSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -167,17 +167,15 @@ export function EditLessonDialog({ open, onOpenChange, lessonId, courseId }: Edi
               <Label htmlFor="content" className="text-[#65B32E]">
                 Lesson Content *
               </Label>
-              <MarkdownEditor
+              <JoditLessonEditor
                 value={form.watch("content") || ""}
                 onChange={(value) => form.setValue("content", value)}
-                placeholder="Enter lesson content... (Markdown supported)"
-                rows={15}
                 disabled={updateLessonMutation.isPending}
               />
               {form.formState.errors.content && (
                 <p className="text-sm text-[#DE1915]">{form.formState.errors.content.message}</p>
               )}
-              <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
+              <p className="text-xs text-muted-foreground">Supports rich text formatting.</p>
             </div>
 
             {/* Error Display */}
