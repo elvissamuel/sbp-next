@@ -5,6 +5,26 @@ import { CreateQuizSchema } from "@/lib/validation-schema"
 import { type NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
 
+function stripHtmlToPlainText(input: string) {
+  const withBreaks = input
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\s*\/p\s*>/gi, "\n")
+    .replace(/<\s*p(\s[^>]*)?>/gi, "")
+    .replace(/<\s*\/h[1-6]\s*>/gi, "\n")
+    .replace(/<\s*h[1-6](\s[^>]*)?>/gi, "")
+
+  const noTags = withBreaks.replace(/<[^>]*>/g, " ")
+  return noTags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\r\n/g, "\n")
+    .replace(/[\t\f\v]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
 // Create a new quiz
 export async function POST(request: NextRequest) {
   try {
@@ -49,7 +69,8 @@ export async function POST(request: NextRequest) {
       referenceContent = lessons
         .map((l) => {
           const parts: string[] = []
-          const body = typeof l.content === "string" ? l.content.trim() : ""
+          const bodyRaw = typeof l.content === "string" ? l.content.trim() : ""
+          const body = bodyRaw ? stripHtmlToPlainText(bodyRaw) : ""
           if (body) parts.push(body)
           const slideBlock = buildReferenceTextFromLessonSlidesJson(l.slides)
           if (slideBlock) {

@@ -54,6 +54,29 @@ export default function ClassroomLessonView() {
   const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
   const enrollment = course?.enrollment
 
+  const lessonPlainText = useMemo(() => {
+    const html = lesson?.content || ""
+    if (!html) return ""
+
+    const withBreaks = html
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\s*\/p\s*>/gi, "\n")
+      .replace(/<\s*p(\s[^>]*)?>/gi, "")
+      .replace(/<\s*\/h[1-6]\s*>/gi, "\n")
+      .replace(/<\s*h[1-6](\s[^>]*)?>/gi, "")
+
+    const noTags = withBreaks.replace(/<[^>]*>/g, " ")
+    return noTags
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\r\n/g, "\n")
+      .replace(/[\t\f\v]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  }, [lesson?.content])
+
   // Calculate which lessons are completed
   const completedLessonsCount = stats.completedLessons
   const isLessonCompleted = (index: number) => {
@@ -343,22 +366,14 @@ export default function ClassroomLessonView() {
             {viewMode === "speech" && hasText && (
               <div className="space-y-4">
                 <div className="flex justify-end">
-                  <TextToSpeech text={lesson.content || ""} compact />
+                  <TextToSpeech text={lessonPlainText} compact />
                 </div>
                 <div className="bg-white rounded-lg border border-border/40 overflow-hidden">
                   <div className="p-6">
-                    <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
-                      {lesson.content?.split("\n").map((line, i) => {
-                        if (line.trim()) {
-                          return (
-                            <p key={i} className="text-sm text-muted-foreground">
-                              {line}
-                            </p>
-                          )
-                        }
-                        return <br key={i} />
-                      })}
-                    </div>
+                    <div
+                      className="prose prose-sm max-w-none text-muted-foreground"
+                      dangerouslySetInnerHTML={{ __html: lesson.content || "" }}
+                    />
                   </div>
                 </div>
               </div>
