@@ -7,6 +7,7 @@ import { SlideEditor } from "./slide-editor"
 import { type Slide } from "@/lib/api-calls"
 import { FileText, Presentation } from "lucide-react"
 import {
+  ENABLE_SLIDES,
   SLIDE_IMAGE_AI_HEIGHT,
   SLIDE_IMAGE_AI_WIDTH,
   SLIDE_IMAGE_ASPECT_LABEL,
@@ -28,7 +29,7 @@ export function LessonContentEditor({
   disabled = false,
 }: LessonContentEditorProps) {
   const [lessonType, setLessonType] = useState<"text" | "slides">(
-    slides && slides.length > 0 ? "slides" : "text"
+    ENABLE_SLIDES && slides && slides.length > 0 ? "slides" : "text"
   )
 
   const handleContentChange = (value: string) => {
@@ -37,6 +38,21 @@ export function LessonContentEditor({
 
   const handleSlidesChange = (updatedSlides: Slide[]) => {
     onSlidesChange?.(updatedSlides)
+  }
+
+  if (!ENABLE_SLIDES) {
+    return (
+      <div className="space-y-2">
+        <MarkdownEditor
+          value={content}
+          onChange={handleContentChange}
+          placeholder="Enter lesson content... (Markdown supported)"
+          rows={15}
+          disabled={disabled}
+        />
+        <p className="text-xs text-muted-foreground">Supports Markdown formatting. Use the Preview tab to see how it will look.</p>
+      </div>
+    )
   }
 
   return (

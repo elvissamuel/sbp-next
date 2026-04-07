@@ -66,7 +66,7 @@ export default function ClassroomQuizView() {
     const winner = new Audio("/sound/winner-sound.mp3")
     winner.volume = 0.7
 
-    const failure = new Audio("/sound/failure-sound.mp3")
+    const failure = new Audio("/sound/buzzer-failure.mp3")
     failure.volume = 0.7
 
     ambienceRef.current = ambience

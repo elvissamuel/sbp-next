@@ -30,10 +30,12 @@ export default function SignInPage() {
     mutationFn: signIn,
     onSuccess: (response) => {
       if (response.data) {
+        const organizations = response.data.organizations || []
+
         // Store full session with organizations
         setSession({
           user: response.data.user,
-          organizations: response.data.organizations.map((org: any) => ({
+          organizations: organizations.map((org: any) => ({
             ...org,
             joinedAt: new Date(org.joinedAt).toISOString(),
           })),
@@ -49,8 +51,36 @@ export default function SignInPage() {
         // Dispatch event to notify layout of session change
         window.dispatchEvent(new Event("session-changed"))
 
-        // Redirect to landing page
-        router.push("/")
+        ;(async () => {
+          // Prefer admin/superadmin org, else first org
+          const primaryOrg =
+            organizations.find((org: any) => org.role === "admin" || org.role === "superadmin") ||
+            organizations[0]
+
+          if (!primaryOrg?.id) {
+            router.push("/")
+            return
+          }
+
+          try {
+            const res = await fetch(`/api/subscriptions/check?organizationId=${primaryOrg.id}`, {
+              cache: "no-store",
+              headers: {
+                "cache-control": "no-cache",
+              },
+            })
+            const data = await res.json().catch(() => null)
+            if (data?.hasSubscription && data?.subscription?.status === "active") {
+              router.push("/dashboard")
+              return
+            }
+            router.push("/")
+          } catch (error) {
+            console.error("Error checking subscription after sign-in:", error)
+            // Avoid incorrectly dumping subscribed users back on landing.
+            router.push("/dashboard")
+          }
+        })()
       } else if (response.error) {
         // Handle API errors
         const errorMessage = response.error.message

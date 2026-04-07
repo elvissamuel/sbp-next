@@ -138,6 +138,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     content: string; // Keep for backward compatibility (text-only lessons)
     slides?: SlidesData | null; // Slide-based lessons
     videoUrl?: string | null;
+    reflectionQuestion?: string | null;
     order: number;
     duration?: number | null;
     status?: string;

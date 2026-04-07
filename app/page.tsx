@@ -28,7 +28,12 @@ function HomeContent() {
 
       try {
         // Check if user has an active subscription
-        const response = await fetch(`/api/subscriptions/check?organizationId=${organization.id}`)
+        const response = await fetch(`/api/subscriptions/check?organizationId=${organization.id}`, {
+          cache: "no-store",
+          headers: {
+            "cache-control": "no-cache",
+          },
+        })
         const data = await response.json()
 
         if (data.hasSubscription && data.subscription?.status === "active") {
@@ -47,8 +52,9 @@ function HomeContent() {
         }
       } catch (error) {
         console.error("Error checking subscription:", error)
-        // On error, redirect to pricing
-        router.push("/#pricing")
+        // On transient error, do NOT incorrectly send subscribed users to pricing.
+        // Let the dashboard route handle gating if needed.
+        router.push("/dashboard")
       }
     }
 

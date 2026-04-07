@@ -8,6 +8,8 @@ export const SLIDE_IMAGE_AI_WIDTH = 1280
 export const SLIDE_IMAGE_AI_HEIGHT = 720
 export const SLIDE_IMAGE_ASPECT_LABEL = "16:9"
 
+export const ENABLE_SLIDES = process.env.NEXT_PUBLIC_ENABLE_SLIDES === "true"
+
 /** Max width (px) of the slide image frame in the classroom viewer — same as generation width. */
 export const SLIDE_MEDIA_DISPLAY_MAX_WIDTH_PX = SLIDE_IMAGE_AI_WIDTH
 

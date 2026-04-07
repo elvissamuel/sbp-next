@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { LexicalEditor } from "@/components/editor"
@@ -13,7 +13,9 @@ interface SlideViewerProps {
 }
 
 export function SlideViewer({ slides, onComplete }: SlideViewerProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const sortedSlides = [...slides].sort((a, b) => a.order - b.order)
   const currentSlide = sortedSlides[currentSlideIndex]
 
@@ -29,6 +31,29 @@ export function SlideViewer({ slides, onComplete }: SlideViewerProps) {
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
   }, [currentSlideIndex, sortedSlides.length])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+    }
+  }, [])
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await rootRef.current?.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch {
+      return
+    }
+  }
 
   const goToPrevious = () => {
     if (currentSlideIndex > 0) {
@@ -73,63 +98,59 @@ export function SlideViewer({ slides, onComplete }: SlideViewerProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Slide Counter and Navigation */}
-      <div className="flex items-center justify-between bg-gray-300 backdrop-blur-sm rounded-lg px-4 py-3 border border-gray-700/50 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-[#65B32E] animate-pulse" />
-            <span className="text-sm font-semibold text-black">
-              Slide <span className="text-black font-bold">{currentSlideIndex + 1}</span> of{" "}
-              <span className="text-gray-900">{sortedSlides.length}</span>
-            </span>
-          </div>
+    <div ref={rootRef} className={isFullscreen ? "bg-[#FAFAFA] p-6 h-screen overflow-auto" : "space-y-4"}>
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          type="button"
+          onClick={goToPrevious}
+          disabled={currentSlideIndex === 0}
+          className="h-12 w-12 rounded-none bg-[#0F766E] hover:bg-[#0F766E]/90 disabled:opacity-40 disabled:hover:bg-[#0F766E]"
+        >
+          <ChevronLeft size={18} />
+        </Button>
+
+        <div className="flex-1 h-12 bg-white border border-border/40 flex items-center justify-center gap-4 px-4">
+          <span className="text-sm font-medium text-[#111827]">Previous Slide</span>
+          <span className="px-4 py-2 rounded-md bg-[#F3F4F6] text-sm text-[#111827]">{currentSlideIndex + 1}/{sortedSlides.length}</span>
+          <span className="text-sm font-medium text-[#111827]">Next slide</span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={goToPrevious}
-            disabled={currentSlideIndex === 0}
-            className="h-9 px-4 text-black hover:text-black hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-200 border border-gray-600/50 hover:border-[#65B32E] bg-gray-800/30"
+            type="button"
+            onClick={toggleFullscreen}
+            variant="outline"
+            className="h-12 px-4 rounded-none border border-border/40 bg-white hover:bg-[#F3F4F6] text-[#111827]"
           >
-            <ChevronLeft size={18} className="mr-1.5" />
-            Previous
+            {isFullscreen ? "Exit" : "Full screen"}
           </Button>
-          <div className="h-6 w-px bg-gray-600" />
+
           <Button
-            variant="ghost"
-            size="sm"
+            type="button"
             onClick={goToNext}
             disabled={currentSlideIndex === sortedSlides.length - 1}
-            className="h-9 px-4 text-black hover:text-black hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-200 border border-gray-600/50 hover:border-[#65B32E] bg-gray-800/30"
+            className="h-12 w-12 rounded-none bg-[#0F766E] hover:bg-[#0F766E]/90 disabled:opacity-40 disabled:hover:bg-[#0F766E]"
           >
-            Next
-            <ChevronRight size={18} className="ml-1.5" />
+            <ChevronRight size={18} />
           </Button>
         </div>
       </div>
 
       {/* Image slides: full-view image only (no title, no body text) */}
       {isImageSlide ? (
-        <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[min(85vh,920px)] max-h-[min(92vh,1100px)]">
-          <div className="flex-1 min-h-0 flex items-center justify-center p-3 sm:p-4 md:p-6">
+        <div className="relative bg-[#E6E6E6] rounded-2xl overflow-hidden flex flex-col min-h-[420px]">
+          <div className="flex-1 min-h-0 flex items-center justify-center p-6">
             <div className="w-full h-full min-h-0 flex items-center justify-center [&_*]:select-none">
-              <SlideImageFrame
-                src={media.url!}
-                title={title}
-                mode="contain"
-                className="bg-black/40 ring-1 ring-white/15 shadow-2xl"
-              />
+              <SlideImageFrame src={media.url!} title={title} mode="contain" className="bg-transparent shadow-none ring-0" />
             </div>
           </div>
         </div>
       ) : (
         /* Non-image slides: title + text / video as before */
-        <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-2xl shadow-2xl overflow-hidden min-h-[500px] max-h-[min(92vh,1100px)] flex flex-col">
+        <div className="relative bg-[#E6E6E6] rounded-2xl overflow-hidden min-h-[420px] flex flex-col">
           <div className="flex-1 min-h-0 overflow-y-auto p-6 md:p-8 flex flex-col">
             {title && (
-              <h2 className="text-3xl md:text-4xl font-bold text-[#65B32E] mb-6 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-bold text-[#111827] mb-6 leading-tight">
                 {title}
               </h2>
             )}
@@ -156,14 +177,14 @@ export function SlideViewer({ slides, onComplete }: SlideViewerProps) {
                   )}
                   {hasContent && (
                     <div className="flex-1 flex flex-col justify-center min-h-[300px]">
-                      <div className="text-gray-200 [&_h1]:text-[#65B32E] [&_h1]:font-bold [&_h2]:text-[#65B32E] [&_h2]:font-bold [&_h3]:text-[#65B32E] [&_h3]:font-bold [&_h4]:text-[#65B32E] [&_h4]:font-bold [&_h5]:text-[#65B32E] [&_h5]:font-bold [&_h6]:text-[#65B32E] [&_h6]:font-bold [&_p]:text-gray-200 [&_p]:text-lg [&_li]:text-gray-200 [&_li]:text-lg [&_strong]:text-[#65B32E] [&_strong]:font-bold [&_em]:text-gray-200 [&_a]:text-[#65B32E] [&_a]:underline [&_a]:hover:text-[#65B32E]/80">
+                      <div className="text-[#111827] [&_h1]:text-[#0F766E] [&_h1]:font-bold [&_h2]:text-[#0F766E] [&_h2]:font-bold [&_h3]:text-[#0F766E] [&_h3]:font-bold [&_h4]:text-[#0F766E] [&_h4]:font-bold [&_h5]:text-[#0F766E] [&_h5]:font-bold [&_h6]:text-[#0F766E] [&_h6]:font-bold [&_p]:text-[#111827] [&_p]:text-base [&_li]:text-[#111827] [&_li]:text-base [&_strong]:text-[#0F766E] [&_strong]:font-bold [&_em]:text-[#111827] [&_a]:text-[#0F766E] [&_a]:underline [&_a]:hover:text-[#0F766E]/80">
                         <LexicalEditor
                           initialEditorState={content.editorState}
                           editable={false}
                           showToolbar={false}
                           outputFormat="html"
                           transparent={true}
-                          className="[&_.lexical-editor-wrapper_.prose]:text-gray-200 [&_.lexical-editor-wrapper_.prose]:bg-transparent [&_.lexical-editor-wrapper_.prose]:max-w-none [&_.lexical-editor-wrapper_contentEditable]:text-gray-200 [&_.lexical-editor-wrapper_contentEditable]:bg-transparent"
+                          className="[&_.lexical-editor-wrapper_.prose]:text-[#111827] [&_.lexical-editor-wrapper_.prose]:bg-transparent [&_.lexical-editor-wrapper_.prose]:max-w-none [&_.lexical-editor-wrapper_contentEditable]:text-[#111827] [&_.lexical-editor-wrapper_contentEditable]:bg-transparent"
                         />
                       </div>
                     </div>
@@ -177,14 +198,14 @@ export function SlideViewer({ slides, onComplete }: SlideViewerProps) {
                         layout === "text-only" ? "w-full min-h-[350px]" : "min-h-[300px]"
                       }`}
                     >
-                      <div className="text-gray-200 [&_h1]:text-[#65B32E] [&_h1]:font-bold [&_h2]:text-[#65B32E] [&_h2]:font-bold [&_h3]:text-[#65B32E] [&_h3]:font-bold [&_h4]:text-[#65B32E] [&_h4]:font-bold [&_h5]:text-[#65B32E] [&_h5]:font-bold [&_h6]:text-[#65B32E] [&_h6]:font-bold [&_p]:text-gray-200 [&_p]:text-lg [&_li]:text-gray-200 [&_li]:text-lg [&_strong]:text-[#65B32E] [&_strong]:font-bold [&_em]:text-gray-200 [&_a]:text-[#65B32E] [&_a]:underline [&_a]:hover:text-[#65B32E]/80">
+                      <div className="text-[#111827] [&_h1]:text-[#0F766E] [&_h1]:font-bold [&_h2]:text-[#0F766E] [&_h2]:font-bold [&_h3]:text-[#0F766E] [&_h3]:font-bold [&_h4]:text-[#0F766E] [&_h4]:font-bold [&_h5]:text-[#0F766E] [&_h5]:font-bold [&_h6]:text-[#0F766E] [&_h6]:font-bold [&_p]:text-[#111827] [&_p]:text-base [&_li]:text-[#111827] [&_li]:text-base [&_strong]:text-[#0F766E] [&_strong]:font-bold [&_em]:text-[#111827] [&_a]:text-[#0F766E] [&_a]:underline [&_a]:hover:text-[#0F766E]/80">
                         <LexicalEditor
                           initialEditorState={content.editorState}
                           editable={false}
                           showToolbar={false}
                           outputFormat="html"
                           transparent={true}
-                          className="[&_.lexical-editor-wrapper_.prose]:text-gray-200 [&_.lexical-editor-wrapper_.prose]:bg-transparent [&_.lexical-editor-wrapper_.prose]:max-w-none [&_.lexical-editor-wrapper_contentEditable]:text-gray-200 [&_.lexical-editor-wrapper_contentEditable]:bg-transparent"
+                          className="[&_.lexical-editor-wrapper_.prose]:text-[#111827] [&_.lexical-editor-wrapper_.prose]:bg-transparent [&_.lexical-editor-wrapper_.prose]:max-w-none [&_.lexical-editor-wrapper_contentEditable]:text-[#111827] [&_.lexical-editor-wrapper_contentEditable]:bg-transparent"
                         />
                       </div>
                     </div>
@@ -226,7 +247,7 @@ export function SlideViewer({ slides, onComplete }: SlideViewerProps) {
             type="button"
             onClick={() => setCurrentSlideIndex(index)}
             className={`h-2 rounded-full transition-all ${
-              index === currentSlideIndex ? "w-8 bg-[#65B32E]" : "w-2 bg-gray-500/50 hover:bg-gray-400/70"
+              index === currentSlideIndex ? "w-8 bg-[#0F766E]" : "w-2 bg-[#C7C7C7] hover:bg-[#B0B0B0]"
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />

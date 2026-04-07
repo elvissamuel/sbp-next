@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
     }
 
-    const { title, content, slides, videoUrl, status } = body
+    const { title, content, slides, videoUrl, reflectionQuestion, status } = body
 
     // Build update data object with only provided fields
     const updateData: {
@@ -62,6 +62,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       content?: string
       slides?: any
       videoUrl?: string | null
+      reflectionQuestion?: string | null
       status?: string
     } = {}
 
@@ -69,6 +70,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (content !== undefined) updateData.content = content
     if (slides !== undefined) updateData.slides = slides ? (slides as any) : null
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null
+    if (reflectionQuestion !== undefined) updateData.reflectionQuestion = reflectionQuestion || null
     if (status !== undefined) updateData.status = status
 
     // Prepare content for indexing
