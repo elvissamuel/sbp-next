@@ -56,7 +56,7 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-6 bg-white">
         <Card className="border-0 rounded-xl overflow-hidden">
-          <div className="relative bg-gradient-to-r from-[#2C6B5B] to-[#3A8B73] px-6 py-8">
+          <div className="relative bg-gradient-to-r from-[#01402E] to-[#589F8B] px-6 py-8">
             <div className="absolute right-0 top-0 h-full w-40 opacity-25">
               <div className="absolute right-6 top-6 h-16 w-16 rounded-xl bg-white/20" />
               <div className="absolute right-14 top-16 h-16 w-16 rounded-xl bg-white/20" />
@@ -76,27 +76,27 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="rounded-lg border-0 bg-[#FFF4E8]">
             <CardContent className="p-4">
-              <p className="text-[10px] font-medium text-[#F97316]">Active</p>
+              <p className="text-[14px] font-medium text-[#F97316]">Active</p>
               <div className="mt-2 text-2xl font-semibold text-[#111827]">
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#F97316]" /> : enrolledCourses.filter((c) => c.status === "in-progress").length}
               </div>
-              <p className="text-[10px] text-muted-foreground">courses in progress</p>
+              <p className="text-[14px] text-muted-foreground">courses in progress</p>
             </CardContent>
           </Card>
 
           <Card className="rounded-lg border-0 bg-[#E9FBEF]">
             <CardContent className="p-4">
-              <p className="text-[10px] font-medium text-[#22C55E]">Completed</p>
+              <p className="text-[14px] font-medium text-[#22C55E]">Completed</p>
               <div className="mt-2 text-2xl font-semibold text-[#111827]">
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /> : enrolledCourses.filter((c) => c.status === "completed").length}
               </div>
-              <p className="text-[10px] text-muted-foreground">courses completed</p>
+              <p className="text-[14px] text-muted-foreground">courses completed</p>
             </CardContent>
           </Card>
 
           <Card className="rounded-lg border-0 bg-[#EAF4FF]">
             <CardContent className="p-4">
-              <p className="text-[10px] font-medium text-[#3B82F6]">Average Progress</p>
+              <p className="text-[14px] font-medium text-[#3B82F6]">Average Progress</p>
               <div className="mt-2 text-2xl font-semibold text-[#111827]">
                 {isLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-[#3B82F6]" />
@@ -106,7 +106,7 @@ export default function DashboardPage() {
                   "0%"
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground">across all course</p>
+              <p className="text-[14px] text-muted-foreground">across all course</p>
             </CardContent>
           </Card>
         </div>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
               <TabsList className="grid w-full grid-cols-2 rounded-md bg-[#F3F4F6] p-1 h-10">
                 <TabsTrigger
                   value="in-progress"
-                  className="rounded-md data-[state=active]:bg-[#0F766E] data-[state=active]:text-white text-muted-foreground"
+                  className="rounded-md data-[state=active]:bg-[#01402E] data-[state=active]:text-white text-muted-foreground"
                 >
                   In progress
                 </TabsTrigger>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
                               <div className="h-full bg-[#0F766E]" style={{ width: `${course.progress}%` }} />
                             </div>
                           </div>
-                          <Button asChild className="w-full h-9 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white text-xs">
+                          <Button asChild className="w-full h-9 rounded-md bg-[#01402E] hover:bg-[#01402E]/90 text-white text-xs">
                             <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
                           </Button>
                         </CardContent>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
                               {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "Course completed"}
                             </p>
                           </div>
-                          <Button asChild className="w-full h-9 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white text-xs">
+                          <Button asChild className="w-full h-9 rounded-md bg-[#01402E] hover:bg-[#01402E]/90 text-white text-xs">
                             <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
                           </Button>
                         </CardContent>

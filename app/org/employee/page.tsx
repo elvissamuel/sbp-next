@@ -121,44 +121,44 @@ export default function EmployeePage() {
     control: (base: any, state: any) => ({
       ...base,
       backgroundColor: "#ffffff",
-      borderColor: state.isFocused ? "#65B32E" : "rgba(101, 179, 46, 0.2)",
+      borderColor: state.isFocused ? "#01402E" : "rgba(1, 64, 46, 0.2)",
       borderRadius: "calc(var(--radius) - 2px)",
       minHeight: "2.5rem",
-      boxShadow: state.isFocused ? "0 0 0 2px rgba(101, 179, 46, 0.2)" : "none",
+      boxShadow: state.isFocused ? "0 0 0 2px rgba(1, 64, 46, 0.2)" : "none",
       "&:hover": {
-        borderColor: "#65B32E",
+        borderColor: "#01402E",
       },
     }),
     menu: (base: any) => ({
       ...base,
       backgroundColor: "#ffffff",
-      border: "1px solid rgba(101, 179, 46, 0.2)",
+      border: "1px solid rgba(1, 64, 46, 0.2)",
       borderRadius: "calc(var(--radius) - 2px)",
       boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
     }),
     option: (base: any, state: any) => ({
       ...base,
       backgroundColor: state.isSelected
-        ? "#65B32E"
+        ? "#01402E"
         : state.isFocused
-        ? "rgba(101, 179, 46, 0.1)"
+        ? "rgba(1, 64, 46, 0.1)"
         : "#ffffff",
       color: state.isSelected ? "#ffffff" : "#000000",
       "&:active": {
-        backgroundColor: "rgba(101, 179, 46, 0.1)",
+        backgroundColor: "rgba(1, 64, 46, 0.1)",
       },
     }),
     multiValue: (base: any) => ({
       ...base,
-      backgroundColor: "rgba(101, 179, 46, 0.1)",
+      backgroundColor: "rgba(1, 64, 46, 0.1)",
     }),
     multiValueLabel: (base: any) => ({
       ...base,
-      color: "#65B32E",
+      color: "#01402E",
     }),
     multiValueRemove: (base: any) => ({
       ...base,
-      color: "#65B32E",
+      color: "#01402E",
       "&:hover": {
         backgroundColor: "#DE1915",
         color: "#ffffff",
@@ -166,7 +166,7 @@ export default function EmployeePage() {
     }),
     placeholder: (base: any) => ({
       ...base,
-      color: "#6b7280",
+      color: "#000000",
     }),
     input: (base: any) => ({
       ...base,
@@ -643,8 +643,8 @@ export default function EmployeePage() {
         <AppBreadcrumbs />
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#65B32E]">Team Members</h1>
-            <p className="text-muted-foreground">Manage your team and assign roles</p>
+            <h1 className="text-3xl font-bold text-[#01402E]">Team Members</h1>
+            <p className="text-black">Manage your team and assign roles</p>
           </div>
           <Dialog
             open={openInvite}
@@ -676,27 +676,27 @@ export default function EmployeePage() {
                   Invite Member (limit reached)
                 </Button>
               ) : (
-                <Button className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+                <Button className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                   <Mail size={16} className="mr-2" />
                   Invite Member
                 </Button>
               )}
             </DialogTrigger>
-            <DialogContent className="bg-white border-[#65B32E]/20">
+            <DialogContent className="bg-white border-[#01402E]/20">
               <DialogHeader>
-                <DialogTitle className="text-[#65B32E]">Invite Team Member</DialogTitle>
+                <DialogTitle className="text-[#01402E]">Invite Team Member</DialogTitle>
                 <DialogDescription>Add a new member to your organization</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleInvite} className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="emails" className="text-[#65B32E]">
+                    <Label htmlFor="emails" className="text-[#01402E]">
                       Email Addresses
                     </Label>
                     <div className="flex items-center gap-2">
                       <Label
                         htmlFor="csv-upload"
-                        className="cursor-pointer text-sm text-[#65B32E] hover:text-[#65B32E]/80 flex items-center gap-1"
+                        className="cursor-pointer text-sm text-[#01402E] hover:text-[#01402E]/80 flex items-center gap-1"
                       >
                         <Upload size={14} />
                         Upload CSV
@@ -718,59 +718,59 @@ export default function EmployeePage() {
                     onChange={(e) => setInviteData((prev) => ({ ...prev, emails: e.target.value }))}
                     required
                     rows={5}
-                    className="border-[#65B32E]/30 focus:border-[#65B32E] font-mono text-sm"
+                    className="border-[#01402E]/30 focus:border-[#01402E] font-mono text-sm"
                     disabled={isParsingCsv || inviteMembersMutation.isPending}
                   />
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-black">
                         Enter multiple email addresses separated by commas, semicolons, or new lines. Duplicate emails will be automatically removed.
                       </p>
                       {csvFileName && (
-                        <div className="flex items-center gap-1 text-xs text-[#65B32E] bg-[#65B32E]/10 px-2 py-1 rounded">
+                        <div className="flex items-center gap-1 text-xs text-[#01402E] bg-[#01402E]/10 px-2 py-1 rounded">
                           <FileText size={12} />
                           <span className="max-w-[120px] truncate">{csvFileName}</span>
                         </div>
                       )}
                     </div>
-                    <div className="p-3 bg-[#65B32E]/5 border border-[#65B32E]/20 rounded-md">
-                      <p className="text-xs font-medium text-[#65B32E] mb-1">CSV File Format:</p>
-                      <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                    <div className="p-3 bg-[#01402E]/5 border border-[#01402E]/20 rounded-md">
+                      <p className="text-xs font-medium text-[#01402E] mb-1">CSV File Format:</p>
+                      <ul className="text-xs text-black space-y-1 list-disc list-inside">
                         <li>CSV file should contain email addresses in a column (with or without header)</li>
                         <li>If header exists, it should contain "email" or "Email"</li>
                         <li>One email per row, or comma-separated values</li>
                         <li>Maximum file size: 5MB</li>
                         <li>Supported formats: .csv, .txt</li>
                       </ul>
-                      <p className="text-xs text-muted-foreground mt-2 italic">
+                      <p className="text-xs text-black mt-2 italic">
                         Example: <code className="bg-white/50 px-1 rounded">email@example.com</code> or <code className="bg-white/50 px-1 rounded">Email,Name</code> (with header)
                       </p>
                     </div>
                   </div>
                   {isParsingCsv && (
-                    <div className="flex items-center gap-2 text-sm text-[#65B32E]">
+                    <div className="flex items-center gap-2 text-sm text-[#01402E]">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Parsing CSV file...</span>
                     </div>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role" className="text-[#65B32E]">Role</Label>
+                  <Label htmlFor="role" className="text-[#01402E]">Role</Label>
                   <Select
                     value={inviteData.role}
                     onValueChange={(value) => setInviteData((prev) => ({ ...prev, role: value as "admin" | "member" | "instructor" }))}
                   >
-                    <SelectTrigger className="border-[#65B32E]/30">
+                    <SelectTrigger className="border-[#01402E]/30">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border-[#65B32E]/20">
+                    <SelectContent className="bg-white border-[#01402E]/20">
                       {canAssignAdmin && <SelectItem value="admin">Admin</SelectItem>}
                       <SelectItem value="member">Member</SelectItem>
                       <SelectItem value="instructor">Instructor</SelectItem>
                     </SelectContent>
                   </Select>
                   {!canAssignAdmin && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-black">
                       Only superadmin can assign admin role
                     </p>
                   )}
@@ -784,14 +784,14 @@ export default function EmployeePage() {
                 {/* Show invitation results */}
                 {inviteResults.length > 0 && (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    <Label className="text-[#65B32E]">Invitation Results</Label>
+                    <Label className="text-[#01402E]">Invitation Results</Label>
                     <div className="space-y-1">
                       {inviteResults.map((result, index) => (
                         <div
                           key={index}
                           className={`p-2 rounded-md text-sm ${
                             result.status === "success"
-                              ? "bg-[#65B32E]/10 border border-[#65B32E]/20 text-[#65B32E]"
+                              ? "bg-[#01402E]/10 border border-[#01402E]/20 text-[#01402E]"
                               : "bg-[#DE1915]/10 border border-[#DE1915]/20 text-[#DE1915]"
                           }`}
                         >
@@ -808,7 +808,7 @@ export default function EmployeePage() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                  className="w-full bg-[#01402E] hover:bg-[#01402E]/90 text-white"
                   disabled={inviteMembersMutation.isPending || !organizationId || !inviteData.emails.trim()}
                 >
                   {inviteMembersMutation.isPending ? (
@@ -831,9 +831,9 @@ export default function EmployeePage() {
 
           {/* Enroll Student Dialog */}
           <Dialog open={openEnroll} onOpenChange={setOpenEnroll}>
-            <DialogContent className="bg-white border-[#65B32E]/20">
+            <DialogContent className="bg-white border-[#01402E]/20">
               <DialogHeader>
-                <DialogTitle className="text-[#65B32E]">Enroll Student in Courses</DialogTitle>
+                <DialogTitle className="text-[#01402E]">Enroll Student in Courses</DialogTitle>
                 <DialogDescription>
                   Select courses to enroll {getUserFullName(selectedMember?.firstName, selectedMember?.lastName, selectedMember?.name) || selectedMember?.email || "this member"} into
                 </DialogDescription>
@@ -841,12 +841,12 @@ export default function EmployeePage() {
               <form onSubmit={handleEnroll} className="space-y-4">
                 {coursesLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#65B32E]" />
-                    <span className="ml-2 text-sm text-muted-foreground">Loading courses...</span>
+                    <Loader2 className="h-6 w-6 animate-spin text-[#01402E]" />
+                    <span className="ml-2 text-sm text-black">Loading courses...</span>
                   </div>
                 ) : courses.length === 0 ? (
                   <div className="p-4 bg-muted rounded-md">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-black">
                       No courses available. Create a course first to enroll students.
                     </p>
                   </div>
@@ -876,7 +876,7 @@ export default function EmployeePage() {
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                    className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
                     disabled={enrollStudentMutation.isPending || selectedCourses.length === 0 || coursesLoading}
                   >
                     {enrollStudentMutation.isPending ? (
@@ -898,7 +898,7 @@ export default function EmployeePage() {
                       setEnrollError(null)
                     }}
                     disabled={enrollStudentMutation.isPending}
-                    className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                    className="border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
                   >
                     Cancel
                   </Button>
@@ -908,17 +908,17 @@ export default function EmployeePage() {
           </Dialog>
         </div>
 
-        <Card className="border-[#65B32E]/20 bg-white">
+        <Card className="border-[#01402E]/20 bg-white">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="border-[#65B32E]/20 hover:bg-transparent">
-                  <TableHead className="text-[#65B32E]">Name</TableHead>
-                  <TableHead className="text-[#65B32E]">Email</TableHead>
-                  <TableHead className="text-[#65B32E]">Job Title</TableHead>
-                  <TableHead className="text-[#65B32E]">Department</TableHead>
-                  <TableHead className="text-[#65B32E]">Role</TableHead>
-                  <TableHead className="text-[#65B32E]">Status</TableHead>
+                <TableRow className="border-[#01402E]/20 hover:bg-transparent">
+                  <TableHead className="text-[#01402E]">Name</TableHead>
+                  <TableHead className="text-[#01402E]">Email</TableHead>
+                  <TableHead className="text-[#01402E]">Job Title</TableHead>
+                  <TableHead className="text-[#01402E]">Department</TableHead>
+                  <TableHead className="text-[#01402E]">Role</TableHead>
+                  <TableHead className="text-[#01402E]">Status</TableHead>
                   <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -926,42 +926,42 @@ export default function EmployeePage() {
                 {membersLoading ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#65B32E]" />
-                      <p className="text-sm text-muted-foreground mt-2">Loading members...</p>
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#01402E]" />
+                      <p className="text-sm text-black mt-2">Loading members...</p>
                     </TableCell>
                   </TableRow>
                 ) : employees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-black">
                       No members yet. Invite your first team member to get started.
                     </TableCell>
                   </TableRow>
                 ) : (
                   employees.map((employee: OrganizationMember) => (
-                    <TableRow key={employee.id} className="border-[#65B32E]/20 hover:bg-[#65B32E]/5">
-                      <TableCell className="font-medium text-[#65B32E]">
+                    <TableRow key={employee.id} className="border-[#01402E]/20 hover:bg-[#01402E]/5">
+                      <TableCell className="font-medium text-[#01402E]">
                         {getUserFullName(employee.firstName, employee.lastName, employee.name)}
                       </TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.jobTitle || "N/A"}</TableCell>
                       <TableCell>{employee.department || "N/A"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="uppercase border-[#65B32E]/30">{employee.role}</Badge>
+                        <Badge variant="outline" className="uppercase border-[#01402E]/30">{employee.role}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="default" className="bg-[#65B32E] text-white">Active</Badge>
+                        <Badge variant="default" className="bg-[#01402E] text-white">Active</Badge>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="hover:bg-[#65B32E]/10">
-                              <MoreHorizontal size={16} className="text-[#65B32E]" />
+                            <Button variant="ghost" size="sm" className="hover:bg-[#01402E]/10">
+                              <MoreHorizontal size={16} className="text-[#01402E]" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-[#65B32E]/20">
+                          <DropdownMenuContent align="end" className="bg-white border-[#01402E]/20">
                             <DropdownMenuItem
                               onClick={() => handleOpenEnroll(employee)}
-                              className="hover:bg-[#65B32E]/10 text-[#65B32E]"
+                              className="hover:bg-[#01402E]/10 text-[#01402E]"
                             >
                               <UserPlus size={16} className="mr-2" />
                               Enroll Student

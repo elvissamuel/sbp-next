@@ -81,44 +81,44 @@ export default function GroupsPage() {
     control: (base: any, state: any) => ({
       ...base,
       backgroundColor: "#ffffff",
-      borderColor: state.isFocused ? "#65B32E" : "rgba(101, 179, 46, 0.2)",
+      borderColor: state.isFocused ? "#01402E" : "rgba(1, 64, 46, 0.2)",
       borderRadius: "calc(var(--radius) - 2px)",
       minHeight: "2.5rem",
-      boxShadow: state.isFocused ? "0 0 0 2px rgba(101, 179, 46, 0.2)" : "none",
+      boxShadow: state.isFocused ? "0 0 0 2px rgba(1, 64, 46, 0.2)" : "none",
       "&:hover": {
-        borderColor: "#65B32E",
+        borderColor: "#01402E",
       },
     }),
     menu: (base: any) => ({
       ...base,
       backgroundColor: "#ffffff",
-      border: "1px solid rgba(101, 179, 46, 0.2)",
+      border: "1px solid rgba(1, 64, 46, 0.2)",
       borderRadius: "calc(var(--radius) - 2px)",
       boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
     }),
     option: (base: any, state: any) => ({
       ...base,
       backgroundColor: state.isSelected
-        ? "#65B32E"
+        ? "#01402E"
         : state.isFocused
-        ? "rgba(101, 179, 46, 0.1)"
+        ? "rgba(1, 64, 46, 0.1)"
         : "#ffffff",
       color: state.isSelected ? "#ffffff" : "#000000",
       "&:active": {
-        backgroundColor: "rgba(101, 179, 46, 0.1)",
+        backgroundColor: "rgba(1, 64, 46, 0.1)",
       },
     }),
     multiValue: (base: any) => ({
       ...base,
-      backgroundColor: "rgba(101, 179, 46, 0.1)",
+      backgroundColor: "rgba(1, 64, 46, 0.1)",
     }),
     multiValueLabel: (base: any) => ({
       ...base,
-      color: "#65B32E",
+      color: "#01402E",
     }),
     multiValueRemove: (base: any) => ({
       ...base,
-      color: "#65B32E",
+      color: "#01402E",
       "&:hover": {
         backgroundColor: "#DE1915",
         color: "#ffffff",
@@ -126,7 +126,7 @@ export default function GroupsPage() {
     }),
     placeholder: (base: any) => ({
       ...base,
-      color: "#6b7280",
+      color: "#000000",
     }),
     input: (base: any) => ({
       ...base,
@@ -286,44 +286,44 @@ export default function GroupsPage() {
         <AppBreadcrumbs />
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#65B32E]">Groups</h1>
-            <p className="text-muted-foreground">Organize students into learning groups</p>
+            <h1 className="text-3xl font-bold text-[#01402E]">Groups</h1>
+            <p className="text-black">Organize students into learning groups</p>
           </div>
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild>
-              <Button onClick={handleOpenCreate} className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+              <Button onClick={handleOpenCreate} className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                 <Plus size={16} className="mr-2" />
                 Create Group
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-white border-[#65B32E]/20">
+            <DialogContent className="bg-white border-[#01402E]/20">
               <DialogHeader>
-                <DialogTitle className="text-[#65B32E]">Create New Group</DialogTitle>
+                <DialogTitle className="text-[#01402E]">Create New Group</DialogTitle>
                 <DialogDescription>Create a new group and add organization members to it</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateGroup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="groupName" className="text-[#65B32E]">Group Name</Label>
+                  <Label htmlFor="groupName" className="text-[#01402E]">Group Name</Label>
                   <Input
                     id="groupName"
                     placeholder="e.g., Web Development Cohort"
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
                     required
-                    className="border-[#65B32E]/30 focus:border-[#65B32E]"
+                    className="border-[#01402E]/30 focus:border-[#01402E]"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[#65B32E]">Select Members</Label>
+                  <Label className="text-[#01402E]">Select Members</Label>
                   {membersLoading ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-[#65B32E]" />
-                      <span className="ml-2 text-sm text-muted-foreground">Loading members...</span>
+                      <Loader2 className="h-6 w-6 animate-spin text-[#01402E]" />
+                      <span className="ml-2 text-sm text-black">Loading members...</span>
                     </div>
                   ) : members.length === 0 ? (
                     <div className="p-4 bg-muted rounded-md">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-black">
                         No members available in your organization. Invite members first.
                       </p>
                     </div>
@@ -354,7 +354,7 @@ export default function GroupsPage() {
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                    className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
                     disabled={createGroupMutation.isPending || membersLoading}
                   >
                     {createGroupMutation.isPending ? (
@@ -375,7 +375,7 @@ export default function GroupsPage() {
                       setSelectedMembers([])
                       setError(null)
                     }}
-                    className="flex-1 border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                    className="flex-1 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
                   >
                     Cancel
                   </Button>
@@ -386,33 +386,33 @@ export default function GroupsPage() {
 
           {/* Enroll Group to Course Dialog */}
           <Dialog open={openEnroll} onOpenChange={setOpenEnroll}>
-            <DialogContent className="bg-white border-[#65B32E]/20">
+            <DialogContent className="bg-white border-[#01402E]/20">
               <DialogHeader>
-                <DialogTitle className="text-[#65B32E]">Enroll Group to Course</DialogTitle>
+                <DialogTitle className="text-[#01402E]">Enroll Group to Course</DialogTitle>
                 <DialogDescription>
                   Enroll all members of "{selectedGroup?.name}" to a course
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleEnrollGroup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="course" className="text-[#65B32E]">Select Course</Label>
+                  <Label htmlFor="course" className="text-[#01402E]">Select Course</Label>
                   {coursesLoading ? (
                     <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-[#65B32E]" />
-                      <span className="ml-2 text-sm text-muted-foreground">Loading courses...</span>
+                      <Loader2 className="h-5 w-5 animate-spin text-[#01402E]" />
+                      <span className="ml-2 text-sm text-black">Loading courses...</span>
                     </div>
                   ) : courses.length === 0 ? (
                     <div className="p-4 bg-muted rounded-md">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-black">
                         No courses available. Create a course first.
                       </p>
                     </div>
                   ) : (
                     <SelectComponent value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                      <SelectTrigger className="border-[#65B32E]/30">
+                      <SelectTrigger className="border-[#01402E]/30">
                         <SelectValue placeholder="Select a course" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white border-[#65B32E]/20">
+                      <SelectContent className="bg-white border-[#01402E]/20">
                         {courses.map((course: CourseWithRelations) => (
                           <SelectItem key={course.id} value={course.id}>
                             {course.title}
@@ -425,7 +425,7 @@ export default function GroupsPage() {
 
                 {selectedGroup && (
                   <div className="p-3 bg-muted rounded-md">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-black">
                       This will enroll all <strong>{selectedGroup.members}</strong> member(s) in the selected course.
                     </p>
                   </div>
@@ -440,7 +440,7 @@ export default function GroupsPage() {
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                    className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
                     disabled={enrollGroupMutation.isPending || coursesLoading || !selectedCourseId}
                   >
                     {enrollGroupMutation.isPending ? (
@@ -461,7 +461,7 @@ export default function GroupsPage() {
                       setSelectedCourseId("")
                       setEnrollError(null)
                     }}
-                    className="flex-1 border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                    className="flex-1 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
                   >
                     Cancel
                   </Button>
@@ -471,31 +471,31 @@ export default function GroupsPage() {
           </Dialog>
         </div>
 
-        <Card className="border-[#65B32E]/20 bg-white">
+        <Card className="border-[#01402E]/20 bg-white">
           <CardContent className="p-0">
             {groupsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[#65B32E]" />
-                <span className="ml-2 text-sm text-muted-foreground">Loading groups...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-[#01402E]" />
+                <span className="ml-2 text-sm text-black">Loading groups...</span>
               </div>
             ) : groups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
-                <p className="text-sm text-muted-foreground mb-4">No groups yet. Create your first group to get started.</p>
+                <p className="text-sm text-black mb-4">No groups yet. Create your first group to get started.</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="border-[#65B32E]/20 hover:bg-transparent">
-                    <TableHead className="text-[#65B32E]">Name</TableHead>
-                    <TableHead className="text-[#65B32E]">Members</TableHead>
+                  <TableRow className="border-[#01402E]/20 hover:bg-transparent">
+                    <TableHead className="text-[#01402E]">Name</TableHead>
+                    <TableHead className="text-[#01402E]">Members</TableHead>
                     <TableHead className="w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {groups.map((group: Group) => (
-                    <TableRow key={group.id} className="border-[#65B32E]/20 hover:bg-[#65B32E]/5">
+                    <TableRow key={group.id} className="border-[#01402E]/20 hover:bg-[#01402E]/5">
                       <TableCell>
-                        <Link href={`/org/groups/${group.id}`} className="font-medium text-[#65B32E] hover:underline">
+                        <Link href={`/org/groups/${group.id}`} className="font-medium text-[#01402E] hover:underline">
                           {group.name}
                         </Link>
                       </TableCell>
@@ -503,17 +503,17 @@ export default function GroupsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="hover:bg-[#65B32E]/10">
-                              <MoreHorizontal size={16} className="text-[#65B32E]" />
+                            <Button variant="ghost" size="sm" className="hover:bg-[#01402E]/10">
+                              <MoreHorizontal size={16} className="text-[#01402E]" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-[#65B32E]/20">
-                            <DropdownMenuItem onClick={() => handleOpenEnroll(group)} className="hover:bg-[#65B32E]/10 text-[#65B32E]">
+                          <DropdownMenuContent align="end" className="bg-white border-[#01402E]/20">
+                            <DropdownMenuItem onClick={() => handleOpenEnroll(group)} className="hover:bg-[#01402E]/10 text-[#01402E]">
                               <BookOpen size={16} className="mr-2" />
                               Enroll to Course
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10">
-                              <Link href={`/org/groups/${group.id}/edit`} className="text-[#65B32E]">
+                            <DropdownMenuItem asChild className="hover:bg-[#01402E]/10">
+                              <Link href={`/org/groups/${group.id}/edit`} className="text-[#01402E]">
                                 <Edit2 size={16} className="mr-2" />
                                 Edit
                               </Link>

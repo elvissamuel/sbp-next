@@ -148,8 +148,8 @@ export function DashboardLayout({
                 className={cn(
                   "block px-4 py-2 rounded-md text-sm transition",
                   isActive
-                    ? "bg-[#65B32E] text-white font-medium"
-                    : "text-muted-foreground hover:bg-[#65B32E]/10 hover:text-[#65B32E]"
+                    ? "bg-[#01402E] text-white font-medium"
+                    : "text-muted-foreground hover:bg-[#01402E]/10 hover:text-[#01402E]"
                 )}
                 onClick={() => setSidebarOpen(false)}
               >
