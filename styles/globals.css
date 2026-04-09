@@ -123,3 +123,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+ .jodit-wysiwyg ul {
+   list-style-type: disc;
+   list-style-position: inside;
+   padding-left: 1.25rem;
+ }
+
+ .jodit-wysiwyg ol {
+   list-style-type: decimal;
+   list-style-position: inside;
+   padding-left: 1.25rem;
+ }

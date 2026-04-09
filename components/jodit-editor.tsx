@@ -27,7 +27,13 @@ export function JoditLessonEditor({ value, onChange, disabled = false }: JoditLe
 
   return (
     <div className={disabled ? "opacity-70 pointer-events-none" : ""}>
-      <JoditEditor ref={editorRef} value={value} config={config} onBlur={(newContent) => onChange(newContent)} />
+      <JoditEditor
+        ref={editorRef}
+        value={value}
+        config={config}
+        onChange={(newContent) => onChange(newContent)}
+        onBlur={(newContent) => onChange(newContent)}
+      />
     </div>
   )
 }

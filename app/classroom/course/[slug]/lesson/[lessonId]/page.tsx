@@ -10,7 +10,6 @@ import { ChevronLeft, Loader2 } from "lucide-react"
 import { getLesson, getCourseBySlug, type Lesson, type Quiz } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
-import { TextToSpeech } from "@/components/text-to-speech"
 import { SlideViewer } from "@/components/lesson/slide-viewer"
 import { useEffect, useMemo, useState } from "react"
 import {
@@ -365,9 +364,6 @@ export default function ClassroomLessonView() {
 
             {viewMode === "speech" && hasText && (
               <div className="space-y-4">
-                <div className="flex justify-end">
-                  <TextToSpeech text={lessonPlainText} compact />
-                </div>
                 <div className="bg-white rounded-lg border border-border/40 overflow-hidden">
                   <div className="p-6">
                     <div
@@ -393,7 +389,7 @@ export default function ClassroomLessonView() {
                         Marking as Complete...
                       </>
                     ) : (
-                      "Next Lesson"
+                      nextItem?.type === "quiz" ? "Take Quiz" : "Next Lesson"
                     )}
                   </Button>
                 </div>
@@ -429,7 +425,7 @@ export default function ClassroomLessonView() {
                             : `/classroom/course/${slug}/quiz/${nextItem.id}`
                         }
                       >
-                        Next Lesson
+                        {nextItem.type === "quiz" ? "Take Quiz" : "Next Lesson"}
                       </Link>
                     </Button>
                   ) : (
