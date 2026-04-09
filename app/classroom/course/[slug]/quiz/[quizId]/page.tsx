@@ -27,7 +27,6 @@ import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
-import { TextToSpeech } from "@/components/text-to-speech"
 
 // Kahoot-style colors for options
 const OPTION_COLORS = [
@@ -301,7 +300,7 @@ export default function ClassroomQuizView() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px] bg-white">
-          <Loader2 className="h-8 w-8 animate-spin text-[#65B32E]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#01402E]" />
         </div>
       </DashboardLayout>
     )
@@ -313,7 +312,7 @@ export default function ClassroomQuizView() {
         <Card className="border-[#DE1915]/20 bg-white">
           <CardContent className="pt-6">
             <p className="text-[#DE1915]">Quiz not found.</p>
-            <Button variant="outline" asChild className="mt-4 border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10">
+            <Button variant="outline" asChild className="mt-4 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
               <Link href={`/classroom/course/${slug}`}>Back to Course</Link>
             </Button>
           </CardContent>
@@ -331,30 +330,30 @@ export default function ClassroomQuizView() {
       <DashboardLayout>
         <div className="space-y-6 bg-white">
           <AppBreadcrumbs />
-          <div className="grid md:grid-cols-4 gap-6">
+          <div>
             {/* Main Content */}
-            <div className="md:col-span-3">
-              <Card className="border-[#65B32E]/20 bg-white">
+            <div>
+              <Card className="border-[#01402E]/20 bg-white">
                 <CardContent className="pt-12 pb-12">
                   <div className="max-w-2xl mx-auto text-center space-y-6">
                     <div className={cn(
                       "w-24 h-24 rounded-full mx-auto flex items-center justify-center",
-                      isPassed ? "bg-[#65B32E]/20" : "bg-[#DE1915]/20"
+                      isPassed ? "bg-[#01402E]/20" : "bg-[#DE1915]/20"
                     )}>
                       {isPassed ? (
-                        <Trophy className="w-12 h-12 text-[#65B32E]" />
+                        <Trophy className="w-12 h-12 text-[#01402E]" />
                       ) : (
                         <AlertCircle className="w-12 h-12 text-[#DE1915]" />
                       )}
                     </div>
                     <div>
-                      <h1 className="text-4xl font-bold text-[#65B32E] mb-2">
+                      <h1 className="text-4xl font-bold text-[#01402E] mb-2">
                         {isPassed ? "Congratulations!" : "Try Again!"}
                       </h1>
                       <p className="text-xl text-muted-foreground">
                         You scored {quizResult.score} out of {quizResult.totalPoints} points
                       </p>
-                      <p className="text-2xl font-bold mt-4" style={{ color: isPassed ? "#65B32E" : "#DE1915" }}>
+                      <p className="text-2xl font-bold mt-4" style={{ color: isPassed ? "#01402E" : "#DE1915" }}>
                         {percentage}%
                       </p>
                     </div>
@@ -363,7 +362,7 @@ export default function ClassroomQuizView() {
                     )}
                     <div className="flex gap-3 justify-center pt-4">
                       {isPassed && nextItem ? (
-                        <Button asChild size="lg" className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+                        <Button asChild size="lg" className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                           <Link href={
                             nextItem.type === "lesson"
                               ? `/classroom/course/${slug}/lesson/${nextItem.id}`
@@ -374,7 +373,7 @@ export default function ClassroomQuizView() {
                           </Link>
                         </Button>
                       ) : (
-                        <Button asChild size="lg" variant="outline" className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10">
+                        <Button asChild size="lg" variant="outline" className="border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
                           <Link href={`/classroom/course/${slug}`}>Back to Course</Link>
                         </Button>
                       )}
@@ -385,119 +384,11 @@ export default function ClassroomQuizView() {
                           setSelectedAnswers({})
                           setQuizResult(null)
                           setHasStartedAudio(false)
-                        }} className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+                        }} className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                           Retake Quiz
                         </Button>
                       )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div>
-              <Card className="border-[#65B32E]/20 bg-white sticky top-20">
-                <CardContent className="pt-6">
-                  <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                    {allContent.map((item, idx) => {
-                      const isLocked = idx > maxAccessibleIndex
-                      if (item.type === "lesson") {
-                        // Find the original lesson index for completion status
-                        const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
-                        const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
-                        const lesson = lessons.find((l: Lesson) => l.id === item.id)
-                        
-                        const content = (
-                          <div
-                            className={`flex items-start gap-3 p-2 rounded-md transition group ${
-                              isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-[#65B32E]/10"
-                            }`}
-                          >
-                            <div className="flex-shrink-0 mt-0.5">
-                              {isCompleted ? (
-                                <CheckCircle2 size={18} className="text-[#65B32E]" />
-                              ) : (
-                                <Circle size={18} className="text-muted-foreground" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-[#65B32E] group-hover:text-[#65B32E]/80 transition line-clamp-2">
-                                {item.title}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <p className="text-xs text-muted-foreground">Lesson {lesson?.order !== undefined ? lesson.order + 1 : ''}</p>
-                                {item.duration && (
-                                  <>
-                                    <span className="text-xs text-muted-foreground">•</span>
-                                    <div className="flex items-center gap-1">
-                                      <Clock size={10} />
-                                      <p className="text-xs text-muted-foreground">{item.duration} min</p>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-
-                        if (isLocked) {
-                          return <div key={item.id}>{content}</div>
-                        }
-
-                        return (
-                          <Link
-                            key={item.id}
-                            href={`/classroom/course/${slug}/lesson/${item.id}`}
-                            className="block"
-                          >
-                            {content}
-                          </Link>
-                        )
-                      } else {
-                        // Quiz item
-                        const isActive = item.id === quizId
-                        const content = (
-                          <div
-                            className={cn(
-                              "flex items-start gap-3 p-2 rounded-md transition group",
-                              isActive
-                                ? "bg-[#65B32E]/10 border border-[#65B32E]/30"
-                                : isLocked
-                                ? "opacity-50 cursor-not-allowed"
-                                : "hover:bg-[#65B32E]/10"
-                            )}
-                          >
-                            <div className="flex-shrink-0 mt-0.5">
-                              <HelpCircle size={18} className="text-[#65B32E]" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={cn(
-                                "text-sm font-medium transition line-clamp-2",
-                                isActive ? "text-[#65B32E]" : "text-[#65B32E] group-hover:text-[#65B32E]/80"
-                              )}>
-                                {item.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">Quiz</p>
-                            </div>
-                          </div>
-                        )
-
-                        if (isLocked) {
-                          return <div key={item.id}>{content}</div>
-                        }
-
-                        return (
-                          <Link
-                            key={item.id}
-                            href={`/classroom/course/${slug}/quiz/${item.id}`}
-                            className="block"
-                          >
-                            {content}
-                          </Link>
-                        )
-                      }
-                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -513,10 +404,10 @@ export default function ClassroomQuizView() {
     <DashboardLayout>
       <div className="space-y-6 bg-white">
         <AppBreadcrumbs />
-        <div className="grid md:grid-cols-4 gap-6">
+        <div>
           {/* Main Content */}
-          <div className="md:col-span-3">
-            <Card className="border-[#65B32E]/20 bg-white">
+          <div>
+            <Card className="border-[#01402E]/20 bg-white">
               <CardContent className="pt-6">
                 {/* Progress bar + sound toggle */}
                 <div className="mb-6">
@@ -525,7 +416,7 @@ export default function ClassroomQuizView() {
                       <span>
                         Question {currentQuestionIndex + 1} of {totalQuestions}
                       </span>
-                      <span className="ml-3 text-[#65B32E] font-semibold">
+                      <span className="ml-3 text-[#01402E] font-semibold">
                         {Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%
                       </span>
                     </div>
@@ -534,7 +425,7 @@ export default function ClassroomQuizView() {
                       variant="outline"
                       size="sm"
                       onClick={toggleSound}
-                      className="border-[#65B32E]/40 text-[#65B32E] hover:bg-[#65B32E]/10 flex items-center gap-2"
+                      className="border-[#01402E]/40 text-[#01402E] hover:bg-[#01402E]/10 flex items-center gap-2"
                     >
                       {isSoundEnabled ? (
                         <>
@@ -549,9 +440,9 @@ export default function ClassroomQuizView() {
                       )}
                     </Button>
                   </div>
-                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#65B32E]/20">
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#01402E]/20">
                     <div
-                      className="h-full bg-[#65B32E] transition-all"
+                      className="h-full bg-[#01402E] transition-all"
                       style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
                     />
                   </div>
@@ -562,10 +453,9 @@ export default function ClassroomQuizView() {
                   <div className="space-y-6">
                     <div>
                       <div className="flex items-start justify-between gap-4 mb-4">
-                        <h2 className="text-2xl font-bold text-[#65B32E] flex-1">
+                        <h2 className="text-2xl font-bold text-[#01402E] flex-1">
                           {currentQuestion.question}
                         </h2>
-                        <TextToSpeech text={currentQuestion.question} compact />
                       </div>
                     </div>
 
@@ -582,7 +472,7 @@ export default function ClassroomQuizView() {
                               "relative p-6 rounded-lg border-2 transition-all transform hover:scale-105 hover:shadow-lg text-left",
                               color.bg,
                               color.border,
-                              isSelected ? "ring-4 ring-offset-2 ring-[#65B32E]" : "",
+                              isSelected ? "ring-4 ring-offset-2 ring-[#01402E]" : "",
                               "text-white font-semibold text-lg"
                             )}
                           >
@@ -603,7 +493,7 @@ export default function ClassroomQuizView() {
                         variant="outline"
                         onClick={handlePrevious}
                         disabled={currentQuestionIndex === 0}
-                        className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                        className="border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
                       >
                         <ChevronLeft size={16} className="mr-2" />
                         Previous
@@ -613,7 +503,7 @@ export default function ClassroomQuizView() {
                         <Button
                           onClick={handleNext}
                           disabled={!selectedAnswers[currentQuestion.id]}
-                          className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                          className="bg-[#01402E] hover:bg-[#01402E]/90 text-white"
                         >
                           Next
                           <ChevronRight size={16} className="ml-2" />
@@ -623,7 +513,7 @@ export default function ClassroomQuizView() {
                           onClick={handleSubmit}
                           disabled={!selectedAnswers[currentQuestion.id] || submitQuizMutation.isPending}
                           size="lg"
-                          className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                          className="bg-[#01402E] hover:bg-[#01402E]/90 text-white"
                         >
                           {submitQuizMutation.isPending ? (
                             <>
@@ -638,114 +528,6 @@ export default function ClassroomQuizView() {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar - Course Contents */}
-          <div>
-            <Card className="border-[#65B32E]/20 bg-white sticky top-20">
-              <CardContent className="pt-6">
-                <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                  {allContent.map((item, idx) => {
-                    const isLocked = idx > maxAccessibleIndex
-                    if (item.type === "lesson") {
-                      // Find the original lesson index for completion status
-                      const lessonIndex = lessons.findIndex((l: Lesson) => l.id === item.id)
-                      const isCompleted = lessonIndex >= 0 ? isLessonCompleted(lessonIndex) : false
-                      const lesson = lessons.find((l: Lesson) => l.id === item.id)
-                      
-                      const content = (
-                        <div
-                          className={`flex items-start gap-3 p-2 rounded-md transition group ${
-                            isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-[#65B32E]/10"
-                          }`}
-                        >
-                          <div className="flex-shrink-0 mt-0.5">
-                            {isCompleted ? (
-                              <CheckCircle2 size={18} className="text-[#65B32E]" />
-                            ) : (
-                              <Circle size={18} className="text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[#65B32E] group-hover:text-[#65B32E]/80 transition line-clamp-2">
-                              {item.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-muted-foreground">Lesson {lesson?.order !== undefined ? lesson.order + 1 : ''}</p>
-                              {item.duration && (
-                                <>
-                                  <span className="text-xs text-muted-foreground">•</span>
-                                  <div className="flex items-center gap-1">
-                                    <Clock size={10} />
-                                    <p className="text-xs text-muted-foreground">{item.duration} min</p>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-
-                      if (isLocked) {
-                        return <div key={item.id}>{content}</div>
-                      }
-
-                      return (
-                        <Link
-                          key={item.id}
-                          href={`/classroom/course/${slug}/lesson/${item.id}`}
-                          className="block"
-                        >
-                          {content}
-                        </Link>
-                      )
-                    } else {
-                      // Quiz item
-                      const isActive = item.id === quizId
-                      const content = (
-                        <div
-                          className={cn(
-                            "flex items-start gap-3 p-2 rounded-md transition group",
-                            isActive
-                              ? "bg-[#65B32E]/10 border border-[#65B32E]/30"
-                              : isLocked
-                              ? "opacity-50 cursor-not-allowed"
-                              : "hover:bg-[#65B32E]/10"
-                          )}
-                        >
-                          <div className="flex-shrink-0 mt-0.5">
-                            <HelpCircle size={18} className="text-[#65B32E]" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={cn(
-                              "text-sm font-medium transition line-clamp-2",
-                              isActive ? "text-[#65B32E]" : "text-[#65B32E] group-hover:text-[#65B32E]/80"
-                            )}>
-                              {item.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Quiz</p>
-                          </div>
-                        </div>
-                      )
-
-                      if (isLocked) {
-                        return <div key={item.id}>{content}</div>
-                      }
-
-                      return (
-                        <Link
-                          key={item.id}
-                          href={`/classroom/course/${slug}/quiz/${item.id}`}
-                          className="block"
-                        >
-                          {content}
-                        </Link>
-                      )
-                    }
-                  })}
-                </div>
               </CardContent>
             </Card>
           </div>
