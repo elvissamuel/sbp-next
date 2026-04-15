@@ -35,7 +35,7 @@ const allNavItems: NavItem[] = [
   { label: "Employees", href: "/org/employee", adminOnly: true, exactMatch: false },
   { label: "Groups", href: "/org/groups", adminOnly: true, exactMatch: false },
   { label: "Departments", href: "/org/departments", adminOnly: true, exactMatch: false },
-  { label: "Levels", href: "/org/levels", adminOnly: true, exactMatch: false },
+  // { label: "Levels", href: "/org/levels", adminOnly: true, exactMatch: false },
   { label: "Permissions", href: "/org/permissions", adminOnly: true, exactMatch: false },
   { label: "Settings", href: "/settings/org", adminOnly: true, exactMatch: false },
 ]

@@ -143,7 +143,7 @@ export default function DashboardPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
-                  className="rounded-md data-[state=active]:bg-white data-[state=active]:text-muted-foreground text-muted-foreground"
+                  className="rounded-md data-[state=active]:bg-[#01402E] data-[state=active]:text-white text-muted-foreground"
                 >
                   Completed
                 </TabsTrigger>

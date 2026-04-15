@@ -5,13 +5,15 @@ import type React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { AuthLayout } from "@/components/layouts/auth-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { JOB_TITLES, DEPARTMENTS } from "@/lib/constants"
+import { JOB_TITLES } from "@/lib/constants"
+import { getDepartments } from "@/lib/api-calls"
 
 function SignUpForm() {
   const router = useRouter()
@@ -20,6 +22,7 @@ function SignUpForm() {
   // Get email from URL params if this is an invite link
   const emailFromUrl = searchParams.get("email")
   const isInvite = searchParams.get("invite") === "true"
+  const orgId = searchParams.get("orgId")
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -34,6 +37,14 @@ function SignUpForm() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState("")
+
+  const { data: departmentsResponse, isLoading: departmentsLoading } = useQuery({
+    queryKey: ["departments", orgId],
+    queryFn: () => getDepartments(orgId as string),
+    enabled: !!orgId && isInvite,
+  })
+
+  const departments = departmentsResponse?.data || []
 
   // Pre-fill email from URL params if present
   useEffect(() => {
@@ -233,15 +244,15 @@ function SignUpForm() {
                     value={formData.department}
                     onValueChange={(value) => handleSelectChange("department", value)}
                     required
-                    disabled={loading}
+                    disabled={loading || departmentsLoading || !orgId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select your department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEPARTMENTS.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept}
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.name}>
+                          {dept.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
