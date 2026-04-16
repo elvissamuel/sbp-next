@@ -960,6 +960,12 @@ export default function EmployeePage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-white border-[#01402E]/20">
                             <DropdownMenuItem
+                              onClick={() => router.push(`/org/employee/${employee.userId}/report`)}
+                              className="hover:bg-[#01402E]/10 text-[#01402E]"
+                            >
+                              View Report
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() => handleOpenEnroll(employee)}
                               className="hover:bg-[#01402E]/10 text-[#01402E]"
                             >
