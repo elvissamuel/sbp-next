@@ -18,6 +18,9 @@ model Organization {
   slug      String   @unique
   logo      String?
   description String?
+  themePrimaryColor String? @default("#01402E")
+  themeSecondaryColor String? @default("#65B32E")
+  themeAccentColor String? @default("#DE1915")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -147,6 +150,7 @@ model Course {
   description     String   @db.Text
   slug            String
   thumbnail       String?
+  deadline        DateTime?
   price           Float    @default(0)
   currency        String   @default("NGN")
   status          String   @default("draft") // draft, published, archived

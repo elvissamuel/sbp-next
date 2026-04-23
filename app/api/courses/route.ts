@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { organizationId, title, description, status, thumbnail } = validationResult.data
+    const { organizationId, title, description, status, thumbnail, deadline } = validationResult.data
 
     // Verify organization exists
     const org = await prisma.organization.findUnique({
@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
         slug,
         status: status || "draft",
         thumbnail: thumbnail && thumbnail !== "" ? thumbnail : null,
+        deadline: deadline || null,
         // Default values for optional fields
         level: "beginner",
         price: 0,

@@ -49,6 +49,7 @@ export default function ClassroomQuizView() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [showResults, setShowResults] = useState(false)
   const [quizResult, setQuizResult] = useState<{ score: number; totalPoints: number; passed: boolean } | null>(null)
+  const [attemptInfo, setAttemptInfo] = useState<{ attemptsCount: number; maxAttempts: number } | null>(null)
   const [isSoundEnabled, setIsSoundEnabled] = useState(true)
   const [hasStartedAudio, setHasStartedAudio] = useState(false)
 
@@ -138,7 +139,7 @@ export default function ClassroomQuizView() {
   // Fetch quiz data
   const { data: quizResponse, isLoading: quizLoading } = useQuery({
     queryKey: ["quiz", quizId],
-    queryFn: () => getQuiz(quizId),
+    queryFn: () => getQuiz(quizId, userId || undefined),
     enabled: !!quizId,
   })
 
@@ -151,10 +152,28 @@ export default function ClassroomQuizView() {
 
   const quiz = quizResponse?.data
   const course = courseResponse?.data
+  const courseLoadError = courseResponse?.error as any
   const lessons = course?.lessons || []
   const quizzes = course?.quizzes || []
   const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
   const enrollment = course?.enrollment
+
+  if (courseLoadError?.message?.toLowerCase?.().includes("deadline") || courseLoadError?.message?.toLowerCase?.().includes("expired")) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 bg-white">
+          <Card className="border-[#DE1915]/20 bg-white">
+            <CardContent className="pt-6">
+              <p className="text-[#DE1915]">This course has expired and can no longer be taken.</p>
+              <Button variant="outline" asChild className="mt-4 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
+                <Link href="/dashboard">Back to Dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   const questions = quiz?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -176,7 +195,8 @@ export default function ClassroomQuizView() {
 
   const isQuizCompleted = (quizId: string) => {
     const q = quizzes.find((qz: Quiz) => qz.id === quizId)
-    return !!q?.attempts?.[0]?.passed
+    const attemptsCount = q?.attempts?.length || 0
+    return !!q?.attempts?.[0]?.passed || attemptsCount >= 2
   }
 
   // Combine lessons and quizzes, sorted by creation date chronologically
@@ -228,6 +248,10 @@ export default function ClassroomQuizView() {
           score: response.data.score,
           totalPoints: response.data.totalPoints,
           passed: response.data.passed,
+        })
+        setAttemptInfo({
+          attemptsCount: response.data.attemptsCount,
+          maxAttempts: response.data.maxAttempts,
         })
         setShowResults(true)
         queryClient.invalidateQueries({ queryKey: ["course-by-slug", slug, userId] })
@@ -325,6 +349,11 @@ export default function ClassroomQuizView() {
   if (showResults && quizResult) {
     const percentage = Math.round((quizResult.score / quizResult.totalPoints) * 100)
     const isPassed = quizResult.passed
+    const maxAttempts = attemptInfo?.maxAttempts ?? 2
+    const attemptsCount = attemptInfo?.attemptsCount ?? 0
+    const attemptsLeft = Math.max(0, maxAttempts - attemptsCount)
+    const canRetake = !isPassed && attemptsLeft > 0
+    const canProceedAfterFail = !isPassed && attemptsLeft === 0
 
     return (
       <DashboardLayout>
@@ -353,6 +382,11 @@ export default function ClassroomQuizView() {
                       <p className="text-xl text-muted-foreground">
                         You scored {quizResult.score} out of {quizResult.totalPoints} points
                       </p>
+                      {!isPassed ? (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Attempts used: {attemptsCount}/{maxAttempts}
+                        </p>
+                      ) : null}
                       <p className="text-2xl font-bold mt-4" style={{ color: isPassed ? "#01402E" : "#DE1915" }}>
                         {percentage}%
                       </p>
@@ -361,7 +395,7 @@ export default function ClassroomQuizView() {
                       <p className="text-muted-foreground">{quiz.description}</p>
                     )}
                     <div className="flex gap-3 justify-center pt-4">
-                      {isPassed && nextItem ? (
+                      {(isPassed || canProceedAfterFail) && nextItem ? (
                         <Button asChild size="lg" className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                           <Link href={
                             nextItem.type === "lesson"
@@ -377,12 +411,13 @@ export default function ClassroomQuizView() {
                           <Link href={`/classroom/course/${slug}`}>Back to Course</Link>
                         </Button>
                       )}
-                      {!isPassed && (
+                      {canRetake && (
                         <Button size="lg" onClick={() => {
                           setShowResults(false)
                           setCurrentQuestionIndex(0)
                           setSelectedAnswers({})
                           setQuizResult(null)
+                          setAttemptInfo(null)
                           setHasStartedAudio(false)
                         }} className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                           Retake Quiz

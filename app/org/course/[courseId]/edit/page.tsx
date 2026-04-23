@@ -65,6 +65,7 @@ export default function EditCoursePage() {
       description: "",
       status: "draft",
       thumbnail: "",
+      deadline: undefined,
     },
     values: course
       ? {
@@ -72,6 +73,7 @@ export default function EditCoursePage() {
           description: course.description,
           status: course.status as "draft" | "published" | "archived",
           thumbnail: course.thumbnail || "",
+          deadline: (course as any).deadline ? new Date((course as any).deadline) : undefined,
         }
       : undefined,
   })
@@ -227,6 +229,32 @@ export default function EditCoursePage() {
                         <Input placeholder="https://example.com/image.jpg" {...field} />
                       </FormControl>
                       <FormDescription>Optional: Add a thumbnail image URL for your course</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="deadline"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Course Deadline (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="datetime-local"
+                          value={
+                            field.value
+                              ? new Date(field.value).toISOString().slice(0, 16)
+                              : ""
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value
+                            field.onChange(value ? new Date(value) : undefined)
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>After this date/time, learners will no longer be able to take this course.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

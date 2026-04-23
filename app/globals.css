@@ -4,6 +4,12 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --org-primary: #01402E;
+  --org-secondary: #65B32E;
+  --org-accent: #DE1915;
+  --org-primary-rgb: 1 64 46;
+  --org-secondary-rgb: 101 179 46;
+  --org-accent-rgb: 222 25 21;
   /* <CHANGE> updated color tokens to match modern LMS design */
   --background: oklch(0.97 0.01 240);
   --foreground: oklch(0.15 0.02 240);
@@ -124,3 +130,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Organization theme bridge for existing hard-coded brand utility classes */
+.text-\[\#01402E\] { color: var(--org-primary) !important; }
+.bg-\[\#01402E\] { background-color: var(--org-primary) !important; }
+.border-\[\#01402E\] { border-color: var(--org-primary) !important; }
+.hover\:bg-\[\#01402E\]\/90:hover { background-color: rgb(var(--org-primary-rgb) / 0.9) !important; }
+.hover\:bg-\[\#01402E\]\/10:hover { background-color: rgb(var(--org-primary-rgb) / 0.1) !important; }
+.hover\:bg-\[\#01402E\]\/5:hover { background-color: rgb(var(--org-primary-rgb) / 0.05) !important; }
+.border-\[\#01402E\]\/20 { border-color: rgb(var(--org-primary-rgb) / 0.2) !important; }
+.border-\[\#01402E\]\/30 { border-color: rgb(var(--org-primary-rgb) / 0.3) !important; }
+.bg-\[\#01402E\]\/10 { background-color: rgb(var(--org-primary-rgb) / 0.1) !important; }
+.bg-\[\#01402E\]\/5 { background-color: rgb(var(--org-primary-rgb) / 0.05) !important; }
+
+.text-\[\#65B32E\] { color: var(--org-secondary) !important; }
+.bg-\[\#65B32E\] { background-color: var(--org-secondary) !important; }
+.border-\[\#65B32E\]\/20 { border-color: rgb(var(--org-secondary-rgb) / 0.2) !important; }
+.border-\[\#65B32E\]\/30 { border-color: rgb(var(--org-secondary-rgb) / 0.3) !important; }
+.hover\:bg-\[\#65B32E\]\/90:hover { background-color: rgb(var(--org-secondary-rgb) / 0.9) !important; }
+.hover\:bg-\[\#65B32E\]\/10:hover { background-color: rgb(var(--org-secondary-rgb) / 0.1) !important; }
+.hover\:bg-\[\#65B32E\]\/5:hover { background-color: rgb(var(--org-secondary-rgb) / 0.05) !important; }
+
+.text-\[\#DE1915\] { color: var(--org-accent) !important; }
+.bg-\[\#DE1915\] { background-color: var(--org-accent) !important; }
+.border-\[\#DE1915\]\/20 { border-color: rgb(var(--org-accent-rgb) / 0.2) !important; }
+.border-\[\#DE1915\]\/30 { border-color: rgb(var(--org-accent-rgb) / 0.3) !important; }
+.hover\:bg-\[\#DE1915\]\/90:hover { background-color: rgb(var(--org-accent-rgb) / 0.9) !important; }
+.hover\:bg-\[\#DE1915\]\/10:hover { background-color: rgb(var(--org-accent-rgb) / 0.1) !important; }

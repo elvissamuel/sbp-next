@@ -21,6 +21,7 @@ export const CreateCourseSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   status: z.enum(["draft", "published", "archived"]),
+  deadline: z.coerce.date().optional(),
   thumbnail: z.preprocess(
     (val) => (val === "" ? undefined : val),
     z.string().url("Invalid thumbnail URL").optional()

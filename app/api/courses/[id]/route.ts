@@ -93,9 +93,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const updates = await request.json()
 
+    const updateData: {
+      title?: string
+      description?: string
+      status?: string
+      thumbnail?: string | null
+      deadline?: Date | null
+    } = {}
+
+    if (updates.title !== undefined) updateData.title = updates.title
+    if (updates.description !== undefined) updateData.description = updates.description
+    if (updates.status !== undefined) updateData.status = updates.status
+
+    if (updates.thumbnail !== undefined) {
+      updateData.thumbnail = updates.thumbnail ? updates.thumbnail : null
+    }
+
+    if (updates.deadline !== undefined) {
+      updateData.deadline = updates.deadline ? new Date(updates.deadline) : null
+    }
+
     const course = await prisma.course.update({
       where: { id: courseId },
-      data: updates,
+      data: updateData,
     })
 
     return NextResponse.json(course)

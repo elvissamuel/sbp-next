@@ -314,21 +314,21 @@ export default function ViewCoursePage() {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 px-2 hover:bg-[#65B32E]/10">
-                                  <MoreHorizontal size={16} className="text-[#65B32E]" />
+                                <Button variant="ghost" size="sm" className="h-7 px-2 hover:bg-secondary/10">
+                                  <MoreHorizontal size={16} className="text-secondary" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-white border-[#65B32E]/20">
+                              <DropdownMenuContent align="end" className="bg-white border-secondary/20">
                                 <DropdownMenuItem
                                   onClick={() => setEditingLesson({ id: lesson.id })}
-                                  className="hover:bg-[#65B32E]/10 text-[#65B32E]"
+                                  className="hover:bg-secondary/10 text-secondary"
                                 >
                                   <Edit size={16} className="mr-2" />
                                   Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => setDeletingLesson({ id: lesson.id, title: lesson.title })}
-                                  className="text-[#DE1915] hover:bg-[#DE1915]/10"
+                                  className="text-destructive hover:bg-destructive/10"
                                 >
                                   <Trash2 size={16} className="mr-2" />
                                   Delete

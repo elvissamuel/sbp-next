@@ -10,10 +10,34 @@ import { BookOpen, Loader2 } from "lucide-react"
 import { getUserEnrollments, type EnrollmentWithCourse } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
 import { getUserFullName } from "@/lib/utils/user"
+import { useEffect, useState } from "react"
 
 export default function DashboardPage() {
   const currentUser = getCurrentUser()
   const userId = currentUser?.id || ""
+
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const formatDeadlineCountdown = (deadline: Date) => {
+    const diffMs = deadline.getTime() - nowMs
+    if (diffMs <= 0) return "Expired"
+
+    const totalMinutes = Math.floor(diffMs / (60 * 1000))
+    const days = Math.floor(totalMinutes / (60 * 24))
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
+    const minutes = totalMinutes % 60
+
+    const parts: string[] = []
+    if (days > 0) parts.push(`${days}d`)
+    if (hours > 0 || days > 0) parts.push(`${hours}h`)
+    parts.push(`${minutes}m`)
+    return parts.join(" ")
+  }
 
   // Fetch user enrollments
   const { data: enrollmentsResponse, isLoading } = useQuery({
@@ -49,14 +73,17 @@ export default function DashboardPage() {
       completedLessons: completedLessons,
       banner: course.thumbnail || "/placeholder.svg",
       enrollmentId: enrollment.id,
+      deadline: (course as any)?.deadline ? new Date((course as any).deadline) : null,
     }
   })
+
+  const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
 
   return (
     <DashboardLayout>
       <div className="space-y-6 bg-white">
         <Card className="border-0 rounded-xl overflow-hidden">
-          <div className="relative bg-gradient-to-r from-[#01402E] to-[#589F8B] px-6 py-8">
+          <div className="relative bg-gradient-to-r from-primary to-secondary px-6 py-8">
             <div className="absolute right-0 top-0 h-full w-40 opacity-25">
               <div className="absolute right-6 top-6 h-16 w-16 rounded-xl bg-white/20" />
               <div className="absolute right-14 top-16 h-16 w-16 rounded-xl bg-white/20" />
@@ -137,13 +164,13 @@ export default function DashboardPage() {
               <TabsList className="grid w-full grid-cols-2 rounded-md bg-[#F3F4F6] p-1 h-10">
                 <TabsTrigger
                   value="in-progress"
-                  className="rounded-md data-[state=active]:bg-[#01402E] data-[state=active]:text-white text-muted-foreground"
+                  className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white text-muted-foreground"
                 >
                   In progress
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
-                  className="rounded-md data-[state=active]:bg-[#01402E] data-[state=active]:text-white text-muted-foreground"
+                  className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white text-muted-foreground"
                 >
                   Completed
                 </TabsTrigger>
@@ -170,6 +197,20 @@ export default function DashboardPage() {
                             <p className="mt-1 text-[10px] text-muted-foreground">
                               {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "0 of 0 lessons"}
                             </p>
+                            {course.deadline ? (
+                              <div className="mt-1 text-[10px]">
+                                <span className="text-muted-foreground">
+                                  Deadline: {course.deadline.toLocaleString()}
+                                </span>
+                                {course.status !== "completed" &&
+                                course.deadline.getTime() - nowMs > 0 &&
+                                course.deadline.getTime() - nowMs <= TWO_DAYS_MS ? (
+                                  <span className="ml-2 font-medium text-destructive">
+                                    ({formatDeadlineCountdown(course.deadline)} left)
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                           <div>
                             <div className="flex items-center justify-between text-[10px]">
@@ -180,7 +221,7 @@ export default function DashboardPage() {
                               <div className="h-full bg-[#0F766E]" style={{ width: `${course.progress}%` }} />
                             </div>
                           </div>
-                          <Button asChild className="w-full h-9 rounded-md bg-[#01402E] hover:bg-[#01402E]/90 text-white text-xs">
+                          <Button asChild className="w-full h-9 rounded-md bg-primary hover:bg-primary/90 text-white text-xs">
                             <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
                           </Button>
                         </CardContent>
@@ -210,8 +251,15 @@ export default function DashboardPage() {
                             <p className="mt-1 text-[10px] text-muted-foreground">
                               {course.lessons > 0 ? `${course.completedLessons} of ${course.lessons} lessons` : "Course completed"}
                             </p>
+                            {course.deadline ? (
+                              <div className="mt-1 text-[10px]">
+                                <span className="text-muted-foreground">
+                                  Deadline: {course.deadline.toLocaleString()}
+                                </span>
+                              </div>
+                            ) : null}
                           </div>
-                          <Button asChild className="w-full h-9 rounded-md bg-[#01402E] hover:bg-[#01402E]/90 text-white text-xs">
+                          <Button asChild className="w-full h-9 rounded-md bg-primary hover:bg-primary/90 text-white text-xs">
                             <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
                           </Button>
                         </CardContent>

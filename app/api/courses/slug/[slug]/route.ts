@@ -69,6 +69,21 @@ export async function GET(
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
+    // Enforce deadline for learners
+    // If a deadline is set and has passed, prevent taking the course via classroom endpoints.
+    // We only enforce when userId is present (classroom/learner context).
+    const courseDeadline = (course as any).deadline as Date | null | undefined
+    if (userId && courseDeadline && new Date(courseDeadline).getTime() < Date.now()) {
+      return NextResponse.json(
+        {
+          error: "Course deadline has passed. You can no longer take this course.",
+          expired: true,
+          deadline: courseDeadline,
+        },
+        { status: 403 }
+      )
+    }
+
     // Get user enrollment if userId is provided
     let enrollment = null
     if (userId) {

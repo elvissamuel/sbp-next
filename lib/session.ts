@@ -16,6 +16,9 @@ export interface UserSession {
     name: string;
     slug: string;
     logo: string | null;
+    themePrimaryColor?: string | null;
+    themeSecondaryColor?: string | null;
+    themeAccentColor?: string | null;
     role: string;
     joinedAt: string; // ISO string for JSON serialization
   }>;
@@ -95,5 +98,27 @@ export function getPrimaryOrganization(): UserSession["organizations"][0] | null
 export function getOrganizationById(organizationId: string): UserSession["organizations"][0] | null {
   const organizations = getUserOrganizations();
   return organizations.find((org) => org.id === organizationId) || null;
+}
+
+/**
+ * Update organization fields in session storage
+ */
+export function updateOrganizationInSession(
+  organizationId: string,
+  updates: Partial<Pick<UserSession["organizations"][0], "name" | "logo" | "themePrimaryColor" | "themeSecondaryColor" | "themeAccentColor">>
+): void {
+  if (typeof window === "undefined") return;
+
+  const session = getSession();
+  if (!session) return;
+
+  const organizations = session.organizations.map((org) =>
+    org.id === organizationId ? { ...org, ...updates } : org
+  );
+
+  setSession({
+    ...session,
+    organizations,
+  });
 }
 

@@ -72,6 +72,7 @@ export default function CreateCoursePage() {
       title: "",
       description: "",
       status: "draft",
+      deadline: undefined,
       thumbnail: "",
     },
   })
@@ -237,13 +238,13 @@ export default function CreateCoursePage() {
       <div className="max-w-2xl space-y-6 bg-white">
         <AppBreadcrumbs />
         <div>
-          <h1 className="text-3xl font-bold text-[#65B32E]">Create Course</h1>
+          <h1 className="text-3xl font-bold text-secondary">Create Course</h1>
           <p className="text-muted-foreground">Create a new course for your organization</p>
         </div>
 
-        <Card className="border-[#65B32E]/20 bg-white">
+        <Card className="border-secondary/20 bg-white">
           <CardHeader>
-            <CardTitle className="text-[#65B32E]">Course Details</CardTitle>
+            <CardTitle className="text-secondary">Course Details</CardTitle>
             <CardDescription>Provide basic information about your course</CardDescription>
           </CardHeader>
           <CardContent>
@@ -253,20 +254,20 @@ export default function CreateCoursePage() {
                 className="space-y-6"
               >
                 {form.formState.errors.root && (
-                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md text-sm text-[#DE1915]">
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
                     {form.formState.errors.root.message}
                   </div>
                 )}
 
                 {freeCourseLimitReached && (
-                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md text-sm text-[#DE1915] flex items-center justify-between gap-3">
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive flex items-center justify-between gap-3">
                     <span>
                       Free plan limit reached: you already have {existingCoursesCount} course{existingCoursesCount !== 1 ? "s" : ""}. Upgrade to create more.
                     </span>
                     <Button
                       type="button"
                       variant="outline"
-                      className="border-[#DE1915]/30 text-[#DE1915] hover:bg-[#DE1915]/5"
+                      className="border-destructive/30 text-destructive hover:bg-destructive/5"
                       onClick={() => router.push("/settings/subscription")}
                     >
                       Upgrade
@@ -276,7 +277,7 @@ export default function CreateCoursePage() {
                 
                 {/* Show all form errors for debugging */}
                 {Object.keys(form.formState.errors).length > 0 && form.formState.errors.root === undefined && (
-                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md text-sm text-[#DE1915]">
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
                     Please fix the form errors below
                   </div>
                 )}
@@ -286,9 +287,9 @@ export default function CreateCoursePage() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[#65B32E]">Course Title</FormLabel>
+                      <FormLabel className="text-secondary">Course Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter course title" {...field} className="border-[#65B32E]/30 focus:border-[#65B32E]" />
+                        <Input placeholder="Enter course title" {...field} className="border-secondary/30 focus:border-secondary" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -300,10 +301,39 @@ export default function CreateCoursePage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[#65B32E]">Description</FormLabel>
+                      <FormLabel className="text-secondary">Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Describe your course..." rows={4} {...field} className="border-[#65B32E]/30 focus:border-[#65B32E]" />
+                        <Textarea placeholder="Describe your course..." rows={4} {...field} className="border-secondary/30 focus:border-secondary" />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="deadline"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-secondary">Course Deadline (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="datetime-local"
+                          value={
+                            field.value
+                              ? new Date(field.value).toISOString().slice(0, 16)
+                              : ""
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value
+                            field.onChange(value ? new Date(value) : undefined)
+                          }}
+                          className="border-secondary/30 focus:border-secondary"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        After this date/time, learners will no longer be able to take this course.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -314,13 +344,13 @@ export default function CreateCoursePage() {
                   name="thumbnail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[#65B32E]">Course Thumbnail</FormLabel>
+                      <FormLabel className="text-secondary">Course Thumbnail</FormLabel>
                       <FormControl>
                         <div className="space-y-4">
                           {/* Image Preview */}
                           {thumbnailPreview && (
                             <div className="relative inline-block">
-                              <div className="relative w-full max-w-xs h-48 border-2 border-[#65B32E]/20 rounded-lg overflow-hidden bg-muted">
+                              <div className="relative w-full max-w-xs h-48 border-2 border-secondary/20 rounded-lg overflow-hidden bg-muted">
                                 <img
                                   src={thumbnailPreview}
                                   alt="Course thumbnail preview"
@@ -331,7 +361,7 @@ export default function CreateCoursePage() {
                                   variant="destructive"
                                   size="sm"
                                   onClick={handleRemoveImage}
-                                  className="absolute top-2 right-2 bg-[#DE1915] hover:bg-[#DE1915]/90 text-white"
+                                  className="absolute top-2 right-2 bg-destructive hover:bg-destructive/90 text-white"
                                   aria-label="Remove image"
                                 >
                                   <X size={16} />
@@ -357,18 +387,18 @@ export default function CreateCoursePage() {
                                 className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                                   isUploadingImage
                                     ? "border-muted-foreground/50 bg-muted/50 cursor-not-allowed"
-                                    : "border-[#65B32E]/30 hover:border-[#65B32E] hover:bg-[#65B32E]/5"
+                                    : "border-secondary/30 hover:border-secondary hover:bg-secondary/5"
                                 }`}
                               >
                                 {isUploadingImage ? (
                                   <>
-                                    <Loader2 className="w-8 h-8 text-[#65B32E] animate-spin mb-2" />
+                                    <Loader2 className="w-8 h-8 text-secondary animate-spin mb-2" />
                                     <p className="text-sm text-muted-foreground">Uploading...</p>
                                   </>
                                 ) : (
                                   <>
-                                    <Upload className="w-8 h-8 text-[#65B32E] mb-2" />
-                                    <p className="text-sm text-[#65B32E] font-medium">
+                                    <Upload className="w-8 h-8 text-secondary mb-2" />
+                                    <p className="text-sm text-secondary font-medium">
                                       Click to upload thumbnail
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
@@ -399,7 +429,7 @@ export default function CreateCoursePage() {
                     <FormItem>
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-[#65B32E]">Publish Course</FormLabel>
+                          <FormLabel className="text-secondary">Publish Course</FormLabel>
                           <FormDescription>Make the course visible to students</FormDescription>
                         </div>
                         <FormControl>
@@ -419,12 +449,12 @@ export default function CreateCoursePage() {
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                    className="flex-1 bg-secondary hover:bg-secondary/90 text-white"
                     disabled={createCourseMutation.isPending || freeCourseLimitReached}
                   >
                     {createCourseMutation.isPending ? "Creating..." : "Create Course"}
                   </Button>
-                  <Button type="button" variant="outline" className="flex-1 border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10" asChild>
+                  <Button type="button" variant="outline" className="flex-1 border-secondary/30 text-secondary hover:bg-secondary/10" asChild>
                     <Link href="/org/course">Cancel</Link>
                   </Button>
                 </div>

@@ -277,9 +277,10 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  export const getQuiz = async (quizId: string): Promise<IApiResponse<Quiz & { course: { id: string; title: string; slug: string } }>> => {
+  export const getQuiz = async (quizId: string, userId?: string): Promise<IApiResponse<Quiz & { course: { id: string; title: string; slug: string } }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/${quizId}`, {
+    const url = userId ? `${baseUrl}/api/quizzes/${quizId}?userId=${encodeURIComponent(userId)}` : `${baseUrl}/api/quizzes/${quizId}`
+    return handleApiCalls(await fetch(url, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     }));
@@ -294,7 +295,11 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  export const submitQuiz = async (userId: string, quizId: string, answers: Record<string, string>): Promise<IApiResponse<{ attempt: any; passed: boolean; score: number; totalPoints: number }>> => {
+  export const submitQuiz = async (
+    userId: string,
+    quizId: string,
+    answers: Record<string, string>
+  ): Promise<IApiResponse<{ attempt: any; passed: boolean; score: number; totalPoints: number; attemptsCount: number; maxAttempts: number }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/submit`, {
       method: "POST",
@@ -404,9 +409,10 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  export const getLesson = async (lessonId: string): Promise<IApiResponse<Lesson & { course: { id: string; title: string } }>> => {
+  export const getLesson = async (lessonId: string, userId?: string): Promise<IApiResponse<Lesson & { course: { id: string; title: string } }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    return handleApiCalls(await fetch(`${baseUrl}/api/lessons/${lessonId}`, {
+    const url = userId ? `${baseUrl}/api/lessons/${lessonId}?userId=${encodeURIComponent(userId)}` : `${baseUrl}/api/lessons/${lessonId}`
+    return handleApiCalls(await fetch(url, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     }));
@@ -520,6 +526,27 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     );
   };
 
+export const updateMember = async (
+  memberId: string,
+  data: {
+    firstName?: string;
+    lastName?: string;
+    jobTitle?: string | null;
+    department?: string | null;
+    role?: "superadmin" | "admin" | "member" | "instructor";
+    requesterUserId?: string;
+  }
+): Promise<IApiResponse<OrganizationMember>> => {
+  const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+  return handleApiCalls(
+    await fetch(`${baseUrl}/api/organizations/members/${memberId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+  );
+};
+
   export type Enrollment = {
     id: string;
     userId: string;
@@ -562,6 +589,10 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     updatedAt: Date;
   };
 
+export type GroupDetails = Group & {
+  memberIds: string[];
+};
+
   export const getGroups = async (organizationId: string): Promise<IApiResponse<Group[]>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/groups?organizationId=${organizationId}`, {
@@ -583,6 +614,38 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
       body: JSON.stringify(data),
     }));
   };
+
+export const getGroupById = async (groupId: string): Promise<IApiResponse<GroupDetails>> => {
+  const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+  return handleApiCalls(await fetch(`${baseUrl}/api/groups/${groupId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  }));
+};
+
+export const updateGroup = async (
+  groupId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    memberIds?: string[];
+  }
+): Promise<IApiResponse<Group>> => {
+  const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+  return handleApiCalls(await fetch(`${baseUrl}/api/groups/${groupId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }));
+};
+
+export const deleteGroup = async (groupId: string): Promise<IApiResponse<{ success: boolean }>> => {
+  const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+  return handleApiCalls(await fetch(`${baseUrl}/api/groups/${groupId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  }));
+};
 
   export type GroupEnrollmentResponse = {
     success: boolean;
@@ -611,6 +674,16 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     updatedAt: Date;
   };
 
+export type OrganizationSettings = {
+  id: string;
+  name: string;
+  logo: string | null;
+  description: string | null;
+  themePrimaryColor: string | null;
+  themeSecondaryColor: string | null;
+  themeAccentColor: string | null;
+};
+
   export const getDepartments = async (organizationId: string): Promise<IApiResponse<Department[]>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/departments?organizationId=${organizationId}`, {
@@ -629,6 +702,68 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
+    }));
+  };
+
+  export const getOrganizationSettings = async (organizationId: string): Promise<IApiResponse<OrganizationSettings>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/${organizationId}/settings`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const updateOrganizationSettings = async (
+    organizationId: string,
+    data: {
+      requesterUserId: string;
+      name?: string;
+      logo?: string | null;
+      description?: string | null;
+      themePrimaryColor?: string;
+      themeSecondaryColor?: string;
+      themeAccentColor?: string;
+    }
+  ): Promise<IApiResponse<OrganizationSettings>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/${organizationId}/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+  };
+
+  export const uploadOrganizationLogo = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/upload-logo`, {
+      method: "POST",
+      body: formData,
+    }));
+  };
+
+  export const updateDepartment = async (
+    departmentId: string,
+    data: {
+      name?: string;
+      description?: string | null;
+    }
+  ): Promise<IApiResponse<Department>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/departments/${departmentId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+  };
+
+  export const deleteDepartment = async (departmentId: string): Promise<IApiResponse<{ success: boolean }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/departments/${departmentId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
     }));
   };
 
