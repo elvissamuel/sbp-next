@@ -9,6 +9,8 @@ import { Bell, ChevronDown, LogOut, Menu, Settings, User, X } from "lucide-react
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { clearSession, getPrimaryOrganization, getCurrentUser } from "@/lib/session"
+import { getOrganizationSettings } from "@/lib/api-calls"
+import { applyOrganizationTheme } from "@/lib/theme"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import {
@@ -48,6 +50,7 @@ export function DashboardLayout({
   const [isMounted, setIsMounted] = useState(false)
   const [user, setUser] = useState<{ id: string; email: string; firstName: string | null; lastName: string | null; name: string | null } | null>(null)
   const [userRole, setUserRole] = useState<string>("member")
+  const [organizationLogo, setOrganizationLogo] = useState<string>("/Seplat-logo.jpg")
   const pathname = usePathname()
   const router = useRouter()
 
@@ -58,6 +61,46 @@ export function DashboardLayout({
     const primaryOrg = getPrimaryOrganization()
     setUser(currentUser)
     setUserRole(primaryOrg?.role || "member")
+    setOrganizationLogo(primaryOrg?.logo || "/Seplat-logo.jpg")
+
+    // Apply any cached org theme immediately to avoid refresh flash.
+    if (primaryOrg) {
+      applyOrganizationTheme({
+        themePrimaryColor: primaryOrg.themePrimaryColor,
+        themeSecondaryColor: primaryOrg.themeSecondaryColor,
+        themeAccentColor: primaryOrg.themeAccentColor,
+      })
+    }
+
+    const loadOrganizationTheme = async () => {
+      if (!primaryOrg?.id) return
+
+      const response = await getOrganizationSettings(primaryOrg.id)
+      if (response.data) {
+        applyOrganizationTheme({
+          themePrimaryColor: response.data.themePrimaryColor,
+          themeSecondaryColor: response.data.themeSecondaryColor,
+          themeAccentColor: response.data.themeAccentColor,
+        })
+      }
+    }
+
+    void loadOrganizationTheme()
+  }, [])
+
+  // Keep logo in sync when session organization changes (e.g. after settings save).
+  useEffect(() => {
+    const syncLogo = () => {
+      const primaryOrg = getPrimaryOrganization()
+      setOrganizationLogo(primaryOrg?.logo || "/Seplat-logo.jpg")
+    }
+
+    syncLogo()
+    window.addEventListener("focus", syncLogo)
+
+    return () => {
+      window.removeEventListener("focus", syncLogo)
+    }
   }, [])
 
   const displayEmail = userEmail || user?.email || "user@example.com"
@@ -109,12 +152,12 @@ export function DashboardLayout({
     <div className="min-h-screen bg-white">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-[#65B32E]/20 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-secondary/20 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        <div className="p-6 border-b border-[#65B32E]/20">
+        <div className="p-6 border-b border-secondary/20">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/Seplat-logo.jpg"
+              src={organizationLogo}
               alt="LearningHub Logo"
               width={32}
               height={32}
@@ -148,8 +191,8 @@ export function DashboardLayout({
                 className={cn(
                   "block px-4 py-2 rounded-md text-sm transition",
                   isActive
-                    ? "bg-[#01402E] text-white font-medium"
-                    : "text-muted-foreground hover:bg-[#01402E]/10 hover:text-[#01402E]"
+                    ? "bg-primary text-white font-medium"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
                 )}
                 onClick={() => setSidebarOpen(false)}
               >
@@ -167,11 +210,11 @@ export function DashboardLayout({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col md:ml-64">
-        <header className="border-b border-[#65B32E]/20 bg-white sticky top-0 z-20">
+        <header className="border-b border-secondary/20 bg-white sticky top-0 z-20">
           <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-1">
               <button
-                className="md:hidden p-2 hover:bg-[#65B32E]/10 rounded-md text-[#65B32E]"
+                className="md:hidden p-2 hover:bg-secondary/10 rounded-md text-secondary"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
               >
                 {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -198,32 +241,32 @@ export function DashboardLayout({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 px-2 rounded-sm hover:bg-muted">
-                    <div className="w-7 h-7 bg-[#65B32E] rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                    <div className="w-7 h-7 bg-secondary rounded-full flex items-center justify-center text-white text-xs font-semibold">
                       {userInitials}
                     </div>
                     <span className="ml-2 text-sm text-foreground hidden sm:inline">{userFullName}</span>
                     <ChevronDown size={14} className="ml-1 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border border-[#65B32E]/20">
+                <DropdownMenuContent align="end" className="w-56 bg-white border border-secondary/20">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-[#65B32E]">{displayEmail}</p>
+                    <p className="text-sm font-medium text-secondary">{displayEmail}</p>
                   </div>
-                  <DropdownMenuSeparator className="bg-[#65B32E]/20" />
-                  <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10 focus:bg-[#65B32E]/10">
+                  <DropdownMenuSeparator className="bg-secondary/20" />
+                  <DropdownMenuItem asChild className="hover:bg-secondary/10 focus:bg-secondary/10">
                     <Link href="/profile" className="cursor-pointer text-foreground">
-                      <User size={16} className="mr-2 text-[#65B32E]" />
+                      <User size={16} className="mr-2 text-secondary" />
                       Profile Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="hover:bg-[#65B32E]/10 focus:bg-[#65B32E]/10">
+                  <DropdownMenuItem asChild className="hover:bg-secondary/10 focus:bg-secondary/10">
                     <Link href="/settings/billing" className="cursor-pointer text-foreground">
-                      <Settings size={16} className="mr-2 text-[#65B32E]" />
+                      <Settings size={16} className="mr-2 text-secondary" />
                       Billing
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-[#65B32E]/20" />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-[#DE1915]/10 focus:bg-[#DE1915]/10 text-[#DE1915]">
+                  <DropdownMenuSeparator className="bg-secondary/20" />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-destructive/10 focus:bg-destructive/10 text-destructive">
                     <LogOut size={16} className="mr-2" />
                     Sign Out
                   </DropdownMenuItem>

@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
               include: {
                 attempts: {
                   where: { userId },
-                  orderBy: { attemptedAt: "desc" },
+                  orderBy: { attemptedAt: "asc" },
                   select: {
                     id: true,
                     score: true,
@@ -89,13 +89,25 @@ export async function GET(request: NextRequest) {
 
         const quizzes = enrollment.course.quizzes.map((quiz) => {
           const attempts = quiz.attempts || []
-          const latest = attempts[0] || null
+          const latest = attempts.length > 0 ? attempts[attempts.length - 1] : null
           const bestScore = attempts.length > 0 ? Math.max(...attempts.map((a) => a.score)) : null
           const attemptsCount = attempts.length
 
           const totalPoints = quiz.totalPoints
           const latestPercentage = latest ? Math.round((latest.score / totalPoints) * 100) : null
           const bestPercentage = bestScore !== null ? Math.round((bestScore / totalPoints) * 100) : null
+
+          const attemptsDetailed = attempts.map((a, index) => {
+            const percentage = totalPoints ? Math.round((a.score / totalPoints) * 100) : null
+            return {
+              id: a.id,
+              attemptNumber: index + 1,
+              score: a.score,
+              percentage,
+              passed: a.passed,
+              attemptedAt: a.attemptedAt,
+            }
+          })
 
           return {
             id: quiz.id,
@@ -104,6 +116,7 @@ export async function GET(request: NextRequest) {
             totalPoints: quiz.totalPoints,
             status: quiz.status,
             attemptsCount,
+            attempts: attemptsDetailed,
             latestAttempt: latest
               ? {
                   id: latest.id,
@@ -121,6 +134,7 @@ export async function GET(request: NextRequest) {
         const quizzesTotal = quizzes.length
         const quizzesAttempted = quizzes.filter((q) => q.latestAttempt).length
         const quizzesPassed = quizzes.filter((q) => q.passed).length
+        const quizzesFailed = Math.max(0, quizzesAttempted - quizzesPassed)
 
         const attemptedPercentages = quizzes
           .map((q) => q.latestAttempt?.percentage)
@@ -154,11 +168,16 @@ export async function GET(request: NextRequest) {
             totalLessons: progressData.totalLessons,
             quizProgress: progressData.quizProgress,
           },
+          overallScore: {
+            percent: progressData.progress,
+            passed: progressData.progress >= 70,
+          },
           quizzes,
           quizSummary: {
             quizzesTotal,
             quizzesAttempted,
             quizzesPassed,
+            quizzesFailed,
             avgQuizScorePercent,
           },
         }
@@ -176,6 +195,8 @@ export async function GET(request: NextRequest) {
     const allQuizzes = courseReports.flatMap((c) => c.quizzes)
     const totalQuizzes = allQuizzes.length
     const quizzesPassed = allQuizzes.filter((q) => q.passed).length
+    const quizzesAttempted = allQuizzes.filter((q) => q.latestAttempt).length
+    const quizzesFailed = Math.max(0, quizzesAttempted - quizzesPassed)
 
     const allAttemptedQuizPercentages = allQuizzes
       .map((q) => q.latestAttempt?.percentage)
@@ -203,6 +224,7 @@ export async function GET(request: NextRequest) {
         avgCourseProgress,
         totalQuizzes,
         quizzesPassed,
+        quizzesFailed,
         avgQuizScorePercent,
       },
       courses: courseReports,

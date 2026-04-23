@@ -11,6 +11,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Quiz ID is required" }, { status: 400 })
     }
 
+    const userId = request.nextUrl.searchParams.get("userId")
+
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             id: true,
             title: true,
             slug: true,
+            deadline: true,
           },
         },
       },
@@ -29,6 +32,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!quiz) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 })
+    }
+
+    // Enforce course deadline for learners
+    const courseDeadline = (quiz.course as any)?.deadline as Date | null | undefined
+    if (userId && courseDeadline && new Date(courseDeadline).getTime() < Date.now()) {
+      return NextResponse.json(
+        { error: "Course deadline has passed. You can no longer take this course.", expired: true, deadline: courseDeadline },
+        { status: 403 }
+      )
     }
 
     return NextResponse.json(quiz)

@@ -27,6 +27,7 @@ export default function ClassroomCourseView() {
   })
 
   const course = courseResponse?.data
+  const courseLoadError = courseResponse?.error as any
   const lessons = course?.lessons || []
   const quizzes = course?.quizzes || []
   const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
@@ -41,7 +42,8 @@ export default function ClassroomCourseView() {
 
   const isQuizCompleted = (quizId: string) => {
     const quiz = quizzes.find((q: Quiz) => q.id === quizId)
-    return !!quiz?.attempts?.[0]?.passed
+    const attemptsCount = quiz?.attempts?.length || 0
+    return !!quiz?.attempts?.[0]?.passed || attemptsCount >= 2
   }
 
   // Combine lessons and quizzes, sorted by creation date chronologically
@@ -89,6 +91,21 @@ export default function ClassroomCourseView() {
         <div className="flex items-center justify-center min-h-[400px] bg-white">
           <Loader2 className="h-8 w-8 animate-spin text-[#65B32E]" />
         </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (courseLoadError?.message?.toLowerCase?.().includes("deadline") || courseLoadError?.message?.toLowerCase?.().includes("expired")) {
+    return (
+      <DashboardLayout>
+        <Card className="border-[#DE1915]/20 bg-white">
+          <CardContent className="pt-6">
+            <p className="text-[#DE1915]">This course has expired and can no longer be taken.</p>
+            <Button variant="outline" asChild className="mt-4 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
+              <Link href="/dashboard">Back to Dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     )
   }

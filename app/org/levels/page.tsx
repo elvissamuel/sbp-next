@@ -128,26 +128,26 @@ export default function LevelsPage() {
         <AppBreadcrumbs />
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#65B32E]">Levels</h1>
+            <h1 className="text-3xl font-bold text-primary">Levels</h1>
             <p className="text-muted-foreground">Manage organizational hierarchy levels</p>
           </div>
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild>
-              <Button onClick={handleOpenCreate} className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+              <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-white">
                 <Plus size={16} className="mr-2" />
                 Create Level
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-white border-[#65B32E]/20">
+            <DialogContent className="bg-white border-primary/20">
               <DialogHeader>
-                <DialogTitle className="text-[#65B32E]">Create New Level</DialogTitle>
+                <DialogTitle className="text-primary">Create New Level</DialogTitle>
                 <DialogDescription>
                   Create a new hierarchy level for your organization. Lower level numbers indicate higher hierarchy (Level 1 &gt; Level 2 &gt; Level 3).
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateLevel} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="levelName" className="text-[#65B32E]">
+                  <Label htmlFor="levelName" className="text-primary">
                     Level Name
                   </Label>
                   <Input
@@ -156,12 +156,12 @@ export default function LevelsPage() {
                     value={levelName}
                     onChange={(e) => setLevelName(e.target.value)}
                     required
-                    className="border-[#65B32E]/30 focus:border-[#65B32E]"
+                    className="border-primary/30 focus:border-primary"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="levelNumber" className="text-[#65B32E]">
+                  <Label htmlFor="levelNumber" className="text-primary">
                     Level Number
                   </Label>
                   <Input
@@ -172,7 +172,7 @@ export default function LevelsPage() {
                     value={levelNumber}
                     onChange={(e) => setLevelNumber(parseInt(e.target.value) || 1)}
                     required
-                    className="border-[#65B32E]/30 focus:border-[#65B32E]"
+                    className="border-primary/30 focus:border-primary"
                   />
                   <p className="text-xs text-muted-foreground">
                     Lower numbers indicate higher hierarchy (1 = highest level)
@@ -180,7 +180,7 @@ export default function LevelsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="levelDescription" className="text-[#65B32E]">
+                  <Label htmlFor="levelDescription" className="text-primary">
                     Description (Optional)
                   </Label>
                   <Textarea
@@ -189,13 +189,13 @@ export default function LevelsPage() {
                     value={levelDescription}
                     onChange={(e) => setLevelDescription(e.target.value)}
                     rows={4}
-                    className="border-[#65B32E]/30 focus:border-[#65B32E]"
+                    className="border-primary/30 focus:border-primary"
                   />
                 </div>
 
                 {error && (
-                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md">
-                    <p className="text-sm text-[#DE1915]">{error}</p>
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                    <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
 
@@ -207,14 +207,14 @@ export default function LevelsPage() {
                       setOpenCreate(false)
                       setError(null)
                     }}
-                    className="border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10"
+                    className="border-primary/30 text-primary hover:bg-primary/10"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     disabled={createLevelMutation.isPending}
-                    className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                    className="bg-primary hover:bg-primary/90 text-white"
                   >
                     {createLevelMutation.isPending ? (
                       <>
@@ -232,23 +232,23 @@ export default function LevelsPage() {
         </div>
 
         {/* Levels Table */}
-        <Card className="border-[#65B32E]/20 bg-white">
+        <Card className="border-primary/20 bg-white">
           <CardContent className="p-0">
             {levelsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[#65B32E]" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <span className="ml-2 text-sm text-muted-foreground">Loading levels...</span>
               </div>
             ) : levels.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-4">
                 <Layers className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold text-[#65B32E] mb-2">No levels yet</h3>
+                <h3 className="text-lg font-semibold text-primary mb-2">No levels yet</h3>
                 <p className="text-sm text-muted-foreground text-center mb-4">
                   Create your first level to establish organizational hierarchy.
                 </p>
                 <Button
                   onClick={handleOpenCreate}
-                  className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white"
+                  className="bg-primary hover:bg-primary/90 text-white"
                 >
                   <Plus size={16} className="mr-2" />
                   Create Level
@@ -257,37 +257,37 @@ export default function LevelsPage() {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="border-[#65B32E]/20 hover:bg-transparent">
-                    <TableHead className="text-[#65B32E] font-semibold">Level Number</TableHead>
-                    <TableHead className="text-[#65B32E] font-semibold">Name</TableHead>
-                    <TableHead className="text-[#65B32E] font-semibold">Description</TableHead>
-                    <TableHead className="text-[#65B32E] font-semibold">Members</TableHead>
-                    <TableHead className="text-[#65B32E] font-semibold">Created</TableHead>
-                    <TableHead className="text-[#65B32E] font-semibold text-right">Actions</TableHead>
+                  <TableRow className="border-primary/20 hover:bg-transparent">
+                    <TableHead className="text-primary font-semibold">Level Number</TableHead>
+                    <TableHead className="text-primary font-semibold">Name</TableHead>
+                    <TableHead className="text-primary font-semibold">Description</TableHead>
+                    <TableHead className="text-primary font-semibold">Members</TableHead>
+                    <TableHead className="text-primary font-semibold">Created</TableHead>
+                    <TableHead className="text-primary font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {levels.map((level: Level) => (
                     <TableRow
                       key={level.id}
-                      className="border-[#65B32E]/20 hover:bg-[#65B32E]/5"
+                      className="border-primary/20 hover:bg-primary/5"
                     >
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className="border-[#65B32E] text-[#65B32E] font-semibold"
+                          className="border-primary text-primary font-semibold"
                         >
                           Level {level.levelNumber}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium text-[#65B32E]">{level.name}</TableCell>
+                      <TableCell className="font-medium text-primary">{level.name}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {level.description || (
                           <span className="text-muted-foreground italic">No description</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="border-[#65B32E]/30 text-[#65B32E]">
+                        <Badge variant="outline" className="border-primary/30 text-primary">
                           {level.memberCount} {level.memberCount === 1 ? "member" : "members"}
                         </Badge>
                       </TableCell>
@@ -300,17 +300,17 @@ export default function LevelsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-[#65B32E]"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
                             >
                               <MoreHorizontal size={16} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-[#65B32E]/20">
-                            <DropdownMenuItem className="text-[#65B32E] hover:bg-[#65B32E]/10 cursor-pointer">
+                          <DropdownMenuContent align="end" className="bg-white border-primary/20">
+                            <DropdownMenuItem className="text-primary hover:bg-primary/10 cursor-pointer">
                               <Edit2 size={16} className="mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-[#DE1915] hover:bg-[#DE1915]/10 cursor-pointer">
+                            <DropdownMenuItem className="text-destructive hover:bg-destructive/10 cursor-pointer">
                               <Trash2 size={16} className="mr-2" />
                               Delete
                             </DropdownMenuItem>

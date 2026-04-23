@@ -108,12 +108,12 @@ export default function CourseManagementPage() {
     control: (base: any, state: any) => ({
       ...base,
       backgroundColor: "#ffffff",
-      borderColor: state.isFocused ? "#01402E" : "rgba(1, 64, 46, 0.2)",
+      borderColor: state.isFocused ? "var(--org-primary)" : "rgb(var(--org-primary-rgb) / 0.2)",
       borderRadius: "calc(var(--radius) - 2px)",
       minHeight: "2.5rem",
       boxShadow: state.isFocused ? "0 0 0 2px rgba(1, 64, 46, 0.2)" : "none",
       "&:hover": {
-        borderColor: "#01402E",
+        borderColor: "var(--org-primary)",
       },
     }),
     menu: (base: any) => ({
@@ -126,7 +126,7 @@ export default function CourseManagementPage() {
     option: (base: any, state: any) => ({
       ...base,
       backgroundColor: state.isSelected
-        ? "#01402E"
+        ? "var(--org-primary)"
         : state.isFocused
         ? "rgba(1, 64, 46, 0.1)"
         : "#ffffff",
@@ -141,13 +141,13 @@ export default function CourseManagementPage() {
     }),
     multiValueLabel: (base: any) => ({
       ...base,
-      color: "#01402E",
+      color: "var(--org-primary)",
     }),
     multiValueRemove: (base: any) => ({
       ...base,
-      color: "#01402E",
+      color: "var(--org-primary)",
       "&:hover": {
-        backgroundColor: "#DE1915",
+        backgroundColor: "var(--org-accent)",
         color: "#ffffff",
       },
     }),
@@ -325,11 +325,11 @@ export default function CourseManagementPage() {
         <AppBreadcrumbs />
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#01402E]">Courses</h1>
+            <h1 className="text-3xl font-bold text-primary">Courses</h1>
             <p className="text-black">Manage and create courses for your organization</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild className="border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
+            <Button variant="outline" asChild className="border-primary/30 text-primary hover:bg-primary/10">
               <Link href="/org/course/resource/upload">
                 <Plus size={16} className="mr-2" />
                 Upload Resource
@@ -339,7 +339,7 @@ export default function CourseManagementPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="border-[#DE1915]/30 text-[#DE1915] hover:bg-[#DE1915]/5"
+                className="border-destructive/30 text-destructive hover:bg-destructive/5"
                 onClick={() => {
                   toast.error("Free plan limit reached", {
                     description: "You can only create up to 2 courses on the Free plan. Upgrade to create more.",
@@ -351,7 +351,7 @@ export default function CourseManagementPage() {
                 Create Course (limit reached)
               </Button>
             ) : (
-              <Button asChild className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
+              <Button asChild className="bg-primary hover:bg-primary/90 text-white">
                 <Link href="/org/course/create">
                   <Plus size={16} className="mr-2" />
                   Create Course
@@ -363,10 +363,10 @@ export default function CourseManagementPage() {
 
         {/* Default Courses Section */}
         {defaultCourses.length > 0 && (
-          <Card className="border-[#01402E]/20 bg-white">
+          <Card className="border-primary/20 bg-white">
             <CardContent className="p-6">
               <div className="mb-4">
-                <h2 className="text-xl font-semibold text-[#01402E]">Default Courses</h2>
+                <h2 className="text-xl font-semibold text-primary">Default Courses</h2>
                 <p className="text-sm text-black">
                   Add pre-built courses to your organization. These courses are available to all organizations.
                 </p>
@@ -374,16 +374,16 @@ export default function CourseManagementPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 {isLoadingDefaultCourses ? (
                   <div className="col-span-2 flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#01402E]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     <span className="ml-2 text-sm text-black">Loading default courses...</span>
                   </div>
                 ) : (
                   defaultCourses.map((course) => (
-                    <Card key={course.id} className="border-[#01402E]/20 bg-white">
+                    <Card key={course.id} className="border-primary/20 bg-white">
                       <CardContent className="p-4">
                         <div className="space-y-3">
                           <div>
-                            <h3 className="font-semibold text-[#01402E]">{course.title}</h3>
+                            <h3 className="font-semibold text-primary">{course.title}</h3>
                             <p className="text-sm text-black line-clamp-2 mt-1">
                               {course.description}
                             </p>
@@ -395,13 +395,13 @@ export default function CourseManagementPage() {
                                 <> • {(course.quizzes as any[]).length} quiz{(course.quizzes as any[]).length !== 1 ? "zes" : ""}</>
                               )}
                             </span>
-                            <Badge variant="outline" className="border-[#01402E]/30">{course.level}</Badge>
+                            <Badge variant="outline" className="border-primary/30">{course.level}</Badge>
                           </div>
                           <div className="flex gap-2">
                             <Button
                               onClick={() => handlePreviewCourse(course)}
                               variant="outline"
-                              className="flex-1 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
+                              className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
                             >
                               <Eye size={16} className="mr-2" />
                               Preview
@@ -409,7 +409,7 @@ export default function CourseManagementPage() {
                             <Button
                               onClick={() => handleCopyCourse(course.id)}
                               disabled={copyCourseMutation.isPending || freeCourseLimitReached}
-                              className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
+                              className="flex-1 bg-primary hover:bg-primary/90 text-white"
                             >
                               {copyCourseMutation.isPending ? (
                                 <>
@@ -436,16 +436,16 @@ export default function CourseManagementPage() {
 
         {/* Organization Courses Section */}
         <div>
-          <h2 className="text-xl font-semibold text-[#01402E] mb-4">Your Courses</h2>
-          <Card className="border-[#01402E]/20 bg-white">
+          <h2 className="text-xl font-semibold text-primary mb-4">Your Courses</h2>
+          <Card className="border-primary/20 bg-white">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="border-[#01402E]/20 hover:bg-transparent">
-                  <TableHead className="text-[#01402E]">Title</TableHead>
-                  <TableHead className="text-[#01402E]">Students</TableHead>
-                  <TableHead className="text-[#01402E]">Status</TableHead>
-                  <TableHead className="text-[#01402E]">Created</TableHead>
+                <TableRow className="border-primary/20 hover:bg-transparent">
+                  <TableHead className="text-primary">Title</TableHead>
+                  <TableHead className="text-primary">Students</TableHead>
+                  <TableHead className="text-primary">Status</TableHead>
+                  <TableHead className="text-primary">Created</TableHead>
                   <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -453,14 +453,14 @@ export default function CourseManagementPage() {
                 {isLoading && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#01402E]" />
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       <p className="text-sm text-black mt-2">Loading courses...</p>
                     </TableCell>
                   </TableRow>
                 )}
                 {error && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-[#DE1915]">
+                    <TableCell colSpan={5} className="text-center py-8 text-destructive">
                       {coursesResponse?.error?.message || "Failed to load courses. Please try again."}
                     </TableCell>
                   </TableRow>
@@ -475,13 +475,13 @@ export default function CourseManagementPage() {
                 {!isLoading && !error && courses.map((course) => (
                   <TableRow 
                     key={course.id} 
-                    className="border-[#01402E]/20 cursor-pointer hover:bg-[#01402E]/5 transition-colors"
+                    className="border-primary/20 cursor-pointer hover:bg-primary/5 transition-colors"
                     onClick={() => router.push(`/org/course/${course.id}`)}
                   >
-                    <TableCell className="font-medium text-[#01402E]">{course.title}</TableCell>
+                    <TableCell className="font-medium text-primary">{course.title}</TableCell>
                     <TableCell>{course.enrollments?.length || 0}</TableCell>
                     <TableCell>
-                      <Badge variant={course.status === "published" ? "default" : "secondary"} className={course.status === "published" ? "bg-[#01402E] text-white" : ""}>
+                      <Badge variant={course.status === "published" ? "default" : "secondary"} className={course.status === "published" ? "bg-primary text-white" : ""}>
                         {course.status}
                       </Badge>
                     </TableCell>
@@ -491,28 +491,28 @@ export default function CourseManagementPage() {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="hover:bg-[#01402E]/10">
-                            <MoreHorizontal size={16} className="text-[#01402E]" />
+                          <Button variant="ghost" size="sm" className="hover:bg-primary/10">
+                            <MoreHorizontal size={16} className="text-primary" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white border-[#01402E]/20">
-                          <DropdownMenuItem asChild className="hover:bg-[#01402E]/10">
-                            <Link href={`/org/course/${course.id}`} className="text-[#01402E]">
+                        <DropdownMenuContent align="end" className="bg-white border-primary/20">
+                          <DropdownMenuItem asChild className="hover:bg-primary/10">
+                            <Link href={`/org/course/${course.id}`} className="text-primary">
                               <Eye size={16} className="mr-2" />
                               View
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleOpenEnroll(course)} className="hover:bg-[#01402E]/10 text-[#01402E]">
+                          <DropdownMenuItem onClick={() => handleOpenEnroll(course)} className="hover:bg-primary/10 text-primary">
                             <UserPlus size={16} className="mr-2" />
                             Enroll Student
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild className="hover:bg-[#01402E]/10">
-                            <Link href={`/org/course/${course.id}/edit`} className="text-[#01402E]">
+                          <DropdownMenuItem asChild className="hover:bg-primary/10">
+                            <Link href={`/org/course/${course.id}/edit`} className="text-primary">
                               <Edit2 size={16} className="mr-2" />
                               Edit
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-[#DE1915] hover:bg-[#DE1915]/10">
+                          <DropdownMenuItem className="text-destructive hover:bg-destructive/10">
                             <Trash2 size={16} className="mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -529,9 +529,9 @@ export default function CourseManagementPage() {
 
         {/* Course Preview Dialog */}
         <Dialog open={openPreview} onOpenChange={setOpenPreview}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border-[#01402E]/20">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border-primary/20">
             <DialogHeader>
-              <DialogTitle className="text-[#01402E]">Course Preview</DialogTitle>
+              <DialogTitle className="text-primary">Course Preview</DialogTitle>
               <DialogDescription>
                 Review the course content before adding it to your organization
               </DialogDescription>
@@ -540,24 +540,24 @@ export default function CourseManagementPage() {
               <div className="space-y-6">
                 {/* Course Header */}
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-bold text-[#01402E]">{previewCourse.title}</h2>
+                  <h2 className="text-2xl font-bold text-primary">{previewCourse.title}</h2>
                   <p className="text-black">{previewCourse.description}</p>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="border-[#01402E]/30">{previewCourse.level}</Badge>
+                    <Badge variant="outline" className="border-primary/30">{previewCourse.level}</Badge>
                     <Badge variant="secondary">{previewCourse.status}</Badge>
                   </div>
                 </div>
 
                 {/* Lessons Section */}
                 <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-[#01402E] flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
                     <FileText size={18} />
                     Lessons ({previewCourse.lessons?.length || 0})
                   </h3>
                   {previewCourse.lessons && (previewCourse.lessons as any[]).length > 0 ? (
                     <div className="space-y-2">
                       {(previewCourse.lessons as any[]).map((lesson: any, index: number) => (
-                        <Card key={lesson.id || index} className="border-[#01402E]/20 bg-white">
+                        <Card key={lesson.id || index} className="border-primary/20 bg-white">
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -571,7 +571,7 @@ export default function CourseManagementPage() {
                                     </span>
                                   )}
                                 </div>
-                                <h4 className="font-semibold text-[#01402E]">{lesson.title}</h4>
+                                <h4 className="font-semibold text-primary">{lesson.title}</h4>
                                 {lesson.content && (
                                   <p className="text-sm text-black mt-2 line-clamp-2">
                                     {lesson.content.replace(/[#*`]/g, "").substring(0, 150)}...
@@ -590,18 +590,18 @@ export default function CourseManagementPage() {
 
                 {/* Quizzes Section */}
                 <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-[#01402E] flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
                     <HelpCircle size={18} />
                     Quizzes ({previewCourse.quizzes?.length || 0})
                   </h3>
                   {previewCourse.quizzes && (previewCourse.quizzes as any[]).length > 0 ? (
                     <div className="space-y-2">
                       {(previewCourse.quizzes as any[]).map((quiz: any, index: number) => (
-                        <Card key={quiz.id || index} className="border-[#01402E]/20 bg-white">
+                        <Card key={quiz.id || index} className="border-primary/20 bg-white">
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <h4 className="font-semibold text-[#01402E]">{quiz.title}</h4>
+                                <h4 className="font-semibold text-primary">{quiz.title}</h4>
                                 {quiz.description && (
                                   <p className="text-sm text-black mt-1">
                                     {quiz.description}
@@ -626,21 +626,21 @@ export default function CourseManagementPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-[#01402E]/20">
+                <div className="flex gap-3 pt-4 border-t border-primary/20">
                   <Button
                     onClick={() => {
                       setOpenPreview(false)
                       setPreviewCourse(null)
                     }}
                     variant="outline"
-                    className="flex-1 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
+                    className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
                   >
                     Close
                   </Button>
                   <Button
                     onClick={() => handleCopyCourse(previewCourse.id)}
                     disabled={copyCourseMutation.isPending}
-                    className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
                   >
                     {copyCourseMutation.isPending ? (
                       <>
@@ -662,9 +662,9 @@ export default function CourseManagementPage() {
 
         {/* Enroll Student Dialog */}
         <Dialog open={openEnroll} onOpenChange={setOpenEnroll}>
-          <DialogContent className="bg-white border-[#01402E]/20">
+          <DialogContent className="bg-white border-primary/20">
             <DialogHeader>
-              <DialogTitle className="text-[#01402E]">Enroll Students in Course</DialogTitle>
+              <DialogTitle className="text-primary">Enroll Students in Course</DialogTitle>
               <DialogDescription>
                 Select students to enroll in <strong>{selectedCourse?.title}</strong>
               </DialogDescription>
@@ -672,7 +672,7 @@ export default function CourseManagementPage() {
             <form onSubmit={handleEnroll} className="space-y-4">
               {membersLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-[#01402E]" />
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   <span className="ml-2 text-sm text-black">Loading members...</span>
                 </div>
               ) : members.length === 0 ? (
@@ -699,15 +699,15 @@ export default function CourseManagementPage() {
               )}
 
               {enrollError && (
-                <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md">
-                  <p className="text-sm text-[#DE1915]">{enrollError}</p>
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <p className="text-sm text-destructive">{enrollError}</p>
                 </div>
               )}
 
               <div className="flex gap-3">
                 <Button
                   type="submit"
-                  className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white"
                   disabled={enrollStudentMutation.isPending || selectedMembers.length === 0 || membersLoading}
                 >
                   {enrollStudentMutation.isPending ? (
@@ -729,7 +729,7 @@ export default function CourseManagementPage() {
                     setEnrollError(null)
                   }}
                   disabled={enrollStudentMutation.isPending}
-                  className="border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
+                  className="border-primary/30 text-primary hover:bg-primary/10"
                 >
                   Cancel
                 </Button>

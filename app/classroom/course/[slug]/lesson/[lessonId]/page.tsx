@@ -35,7 +35,7 @@ export default function ClassroomLessonView() {
   // Fetch lesson data
   const { data: lessonResponse, isLoading: lessonLoading } = useQuery({
     queryKey: ["lesson", lessonId],
-    queryFn: () => getLesson(lessonId),
+    queryFn: () => getLesson(lessonId, userId || undefined),
     enabled: !!lessonId,
   })
 
@@ -48,10 +48,28 @@ export default function ClassroomLessonView() {
 
   const lesson = lessonResponse?.data
   const course = courseResponse?.data
+  const courseLoadError = courseResponse?.error as any
   const lessons = course?.lessons || []
   const quizzes = course?.quizzes || []
   const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
   const enrollment = course?.enrollment
+
+  if (courseLoadError?.message?.toLowerCase?.().includes("deadline") || courseLoadError?.message?.toLowerCase?.().includes("expired")) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 bg-white">
+          <Card className="border-[#DE1915]/20 bg-white">
+            <CardContent className="pt-6">
+              <p className="text-[#DE1915]">This course has expired and can no longer be taken.</p>
+              <Button variant="outline" asChild className="mt-4 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
+                <Link href="/dashboard">Back to Dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   const lessonPlainText = useMemo(() => {
     const html = lesson?.content || ""

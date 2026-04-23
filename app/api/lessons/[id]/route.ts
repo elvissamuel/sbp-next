@@ -14,6 +14,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Lesson ID is required" }, { status: 400 })
     }
 
+    const userId = request.nextUrl.searchParams.get("userId")
+
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
@@ -23,6 +25,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!lesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
+    }
+
+    // Enforce course deadline for learners
+    // We only enforce when userId is provided by the classroom.
+    const courseDeadline = (lesson.course as any)?.deadline as Date | null | undefined
+    if (userId && courseDeadline && new Date(courseDeadline).getTime() < Date.now()) {
+      return NextResponse.json(
+        { error: "Course deadline has passed. You can no longer take this course.", expired: true, deadline: courseDeadline },
+        { status: 403 }
+      )
     }
 
     return NextResponse.json(lesson)

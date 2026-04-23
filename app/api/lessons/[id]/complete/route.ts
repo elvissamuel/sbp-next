@@ -39,6 +39,14 @@ export async function POST(
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
     }
 
+    const courseDeadline = (lesson.course as any)?.deadline as Date | null | undefined
+    if (courseDeadline && new Date(courseDeadline).getTime() < Date.now()) {
+      return NextResponse.json(
+        { error: "Course deadline has passed. You can no longer take this course.", expired: true, deadline: courseDeadline },
+        { status: 403 }
+      )
+    }
+
     // Get or create enrollment
     let enrollment = await prisma.enrollment.findUnique({
       where: {

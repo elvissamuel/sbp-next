@@ -23,6 +23,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 })
     }
 
+    const courseDeadline = (quiz.course as any)?.deadline as Date | null | undefined
+    if (courseDeadline && new Date(courseDeadline).getTime() < Date.now()) {
+      return NextResponse.json(
+        { error: "Course deadline has passed. You can no longer take this course.", expired: true, deadline: courseDeadline },
+        { status: 403 }
+      )
+    }
+
+    const maxAttempts = 2
+    const existingAttemptsCount = await prisma.quizAttempt.count({
+      where: {
+        userId,
+        quizId,
+      },
+    })
+
+    if (existingAttemptsCount >= maxAttempts) {
+      return NextResponse.json(
+        {
+          error: `Maximum attempts reached (${maxAttempts}). You can no longer retake this quiz.`,
+          attemptsExceeded: true,
+          attemptsCount: existingAttemptsCount,
+          maxAttempts,
+        },
+        { status: 403 }
+      )
+    }
+
     // Calculate score
     let score = 0
     const answersObj = typeof answers === "string" ? JSON.parse(answers) : answers
@@ -50,6 +78,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const attemptsCount = existingAttemptsCount + 1
+
     // Update course progress (includes quiz performance)
     const progressData = await updateEnrollmentProgress(userId, quiz.courseId)
 
@@ -58,6 +88,8 @@ export async function POST(request: NextRequest) {
       passed,
       score,
       totalPoints: quiz.totalPoints,
+      attemptsCount,
+      maxAttempts,
       progress: progressData.progress,
       quizProgress: progressData.quizProgress,
     })

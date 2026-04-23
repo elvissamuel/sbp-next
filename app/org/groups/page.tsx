@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import Select from "react-select"
 import type { StylesConfig, MultiValue } from "react-select"
@@ -11,11 +11,21 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select as SelectComponent, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MoreHorizontal, Plus, Edit2, Trash2, Loader2, BookOpen } from "lucide-react"
-import { getGroups, createGroup, getOrganizationMembers, getCourses, enrollGroupToCourse, type Group, type OrganizationMember, type CourseWithRelations } from "@/lib/api-calls"
+import { getGroups, createGroup, getGroupById, updateGroup, deleteGroup, getOrganizationMembers, getCourses, enrollGroupToCourse, type Group, type OrganizationMember, type CourseWithRelations } from "@/lib/api-calls"
 import { getPrimaryOrganization } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -25,11 +35,17 @@ export default function GroupsPage() {
   const queryClient = useQueryClient()
   const [openCreate, setOpenCreate] = useState(false)
   const [openEnroll, setOpenEnroll] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null)
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [selectedCourseId, setSelectedCourseId] = useState<string>("")
   const [groupName, setGroupName] = useState("")
+  const [editGroupName, setEditGroupName] = useState("")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]) // Array of userId
+  const [editSelectedMembers, setEditSelectedMembers] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
   const [enrollError, setEnrollError] = useState<string | null>(null)
 
   const primaryOrganization = getPrimaryOrganization()
@@ -46,7 +62,7 @@ export default function GroupsPage() {
   const { data: membersResponse, isLoading: membersLoading } = useQuery({
     queryKey: ["organization-members", organizationId],
     queryFn: () => getOrganizationMembers(organizationId),
-    enabled: !!organizationId && openCreate,
+    enabled: !!organizationId && (openCreate || openEdit),
   })
 
   // Fetch courses for enrollment
@@ -55,11 +71,22 @@ export default function GroupsPage() {
     queryFn: () => getCourses(organizationId),
     enabled: !!organizationId && openEnroll,
   })
+  const { data: selectedGroupResponse, isLoading: selectedGroupLoading } = useQuery({
+    queryKey: ["group-details", selectedGroup?.id],
+    queryFn: () => getGroupById(selectedGroup!.id),
+    enabled: !!selectedGroup?.id && openEdit,
+  })
 
   const courses = coursesResponse?.data || []
 
   const groups = groupsResponse?.data || []
   const members = membersResponse?.data || []
+
+  useEffect(() => {
+    if (openEdit && selectedGroupResponse?.data) {
+      setEditSelectedMembers(selectedGroupResponse.data.memberIds || [])
+    }
+  }, [openEdit, selectedGroupResponse])
 
   // Prepare options for react-select
   const memberOptions = useMemo(() => {
@@ -206,6 +233,14 @@ export default function GroupsPage() {
     setOpenEnroll(true)
   }
 
+  const handleOpenEdit = (group: Group) => {
+    setSelectedGroup(group)
+    setEditGroupName(group.name)
+    setEditSelectedMembers([])
+    setEditError(null)
+    setOpenEdit(true)
+  }
+
   // Enroll group to course mutation
   const enrollGroupMutation = useMutation({
     mutationFn: ({ groupId, courseId }: { groupId: string; courseId: string }) => enrollGroupToCourse(groupId, courseId),
@@ -280,45 +315,144 @@ export default function GroupsPage() {
     })
   }
 
+  const updateGroupMutation = useMutation({
+    mutationFn: (data: { groupId: string; name: string; memberIds: string[] }) =>
+      updateGroup(data.groupId, { name: data.name, memberIds: data.memberIds }),
+    onSuccess: (response) => {
+      if (response.data) {
+        queryClient.invalidateQueries({ queryKey: ["groups", organizationId] })
+        setOpenEdit(false)
+        setSelectedGroup(null)
+        setEditGroupName("")
+        setEditSelectedMembers([])
+        setEditError(null)
+        toast.success("Group updated", {
+          description: `The group "${response.data.name}" has been updated.`,
+        })
+      } else {
+        const errorMsg = typeof response.error === "string" ? response.error : "Failed to update group."
+        setEditError(errorMsg)
+        toast.error("Failed to update group", {
+          description: errorMsg,
+        })
+      }
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        typeof error?.message === "string"
+          ? error.message
+          : typeof error?.error === "string"
+          ? error.error
+          : "Failed to update group. Please try again."
+      setEditError(errorMessage)
+      toast.error("Failed to update group", {
+        description: errorMessage,
+      })
+    },
+  })
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: (groupId: string) => deleteGroup(groupId),
+    onSuccess: (response) => {
+      if (response.data?.success) {
+        queryClient.invalidateQueries({ queryKey: ["groups", organizationId] })
+        toast.success("Group deleted", {
+          description: `${groupToDelete?.name || "Group"} has been deleted.`,
+        })
+      } else {
+        const errorMsg = typeof response.error === "string" ? response.error : "Failed to delete group."
+        toast.error("Failed to delete group", {
+          description: errorMsg,
+        })
+      }
+      setGroupToDelete(null)
+      setOpenDeleteDialog(false)
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        typeof error?.message === "string"
+          ? error.message
+          : typeof error?.error === "string"
+          ? error.error
+          : "Failed to delete group. Please try again."
+      toast.error("Failed to delete group", {
+        description: errorMessage,
+      })
+      setGroupToDelete(null)
+      setOpenDeleteDialog(false)
+    },
+  })
+
+  const handleUpdateGroup = (e: React.FormEvent) => {
+    e.preventDefault()
+    setEditError(null)
+
+    if (!selectedGroup) {
+      setEditError("No group selected")
+      return
+    }
+
+    if (!editGroupName.trim()) {
+      setEditError("Group name is required")
+      return
+    }
+
+    updateGroupMutation.mutate({
+      groupId: selectedGroup.id,
+      name: editGroupName.trim(),
+      memberIds: editSelectedMembers,
+    })
+  }
+
+  const handleDeleteClick = (group: Group) => {
+    setGroupToDelete(group)
+    setOpenDeleteDialog(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!groupToDelete) return
+    deleteGroupMutation.mutate(groupToDelete.id)
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6 bg-white">
         <AppBreadcrumbs />
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#01402E]">Groups</h1>
+            <h1 className="text-3xl font-bold text-primary">Groups</h1>
             <p className="text-black">Organize students into learning groups</p>
           </div>
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild>
-              <Button onClick={handleOpenCreate} className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
+              <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-white">
                 <Plus size={16} className="mr-2" />
                 Create Group
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-white border-[#01402E]/20">
+            <DialogContent className="bg-white border-primary/20">
               <DialogHeader>
-                <DialogTitle className="text-[#01402E]">Create New Group</DialogTitle>
+                <DialogTitle className="text-primary">Create New Group</DialogTitle>
                 <DialogDescription>Create a new group and add organization members to it</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateGroup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="groupName" className="text-[#01402E]">Group Name</Label>
+                  <Label htmlFor="groupName" className="text-primary">Group Name</Label>
                   <Input
                     id="groupName"
                     placeholder="e.g., Web Development Cohort"
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
                     required
-                    className="border-[#01402E]/30 focus:border-[#01402E]"
+                    className="border-primary/30 focus:border-primary"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[#01402E]">Select Members</Label>
-                  {membersLoading ? (
+                  <Label className="text-primary">Select Members</Label>
+                  {membersLoading || selectedGroupLoading ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-[#01402E]" />
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
                       <span className="ml-2 text-sm text-black">Loading members...</span>
                     </div>
                   ) : members.length === 0 ? (
@@ -346,15 +480,15 @@ export default function GroupsPage() {
                 </div>
 
                 {error && (
-                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md">
-                    <p className="text-sm text-[#DE1915]">{error}</p>
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                    <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
 
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
                     disabled={createGroupMutation.isPending || membersLoading}
                   >
                     {createGroupMutation.isPending ? (
@@ -375,7 +509,7 @@ export default function GroupsPage() {
                       setSelectedMembers([])
                       setError(null)
                     }}
-                    className="flex-1 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
+                    className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
                   >
                     Cancel
                   </Button>
@@ -386,19 +520,19 @@ export default function GroupsPage() {
 
           {/* Enroll Group to Course Dialog */}
           <Dialog open={openEnroll} onOpenChange={setOpenEnroll}>
-            <DialogContent className="bg-white border-[#01402E]/20">
+            <DialogContent className="bg-white border-primary/20">
               <DialogHeader>
-                <DialogTitle className="text-[#01402E]">Enroll Group to Course</DialogTitle>
+                <DialogTitle className="text-primary">Enroll Group to Course</DialogTitle>
                 <DialogDescription>
                   Enroll all members of "{selectedGroup?.name}" to a course
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleEnrollGroup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="course" className="text-[#01402E]">Select Course</Label>
+                  <Label htmlFor="course" className="text-primary">Select Course</Label>
                   {coursesLoading ? (
                     <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-[#01402E]" />
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="ml-2 text-sm text-black">Loading courses...</span>
                     </div>
                   ) : courses.length === 0 ? (
@@ -409,10 +543,10 @@ export default function GroupsPage() {
                     </div>
                   ) : (
                     <SelectComponent value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                      <SelectTrigger className="border-[#01402E]/30">
+                      <SelectTrigger className="border-primary/30">
                         <SelectValue placeholder="Select a course" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white border-[#01402E]/20">
+                      <SelectContent className="bg-white border-primary/20">
                         {courses.map((course: CourseWithRelations) => (
                           <SelectItem key={course.id} value={course.id}>
                             {course.title}
@@ -432,15 +566,15 @@ export default function GroupsPage() {
                 )}
 
                 {enrollError && (
-                  <div className="p-3 bg-[#DE1915]/10 border border-[#DE1915]/20 rounded-md">
-                    <p className="text-sm text-[#DE1915]">{enrollError}</p>
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                    <p className="text-sm text-destructive">{enrollError}</p>
                   </div>
                 )}
 
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-[#01402E] hover:bg-[#01402E]/90 text-white"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
                     disabled={enrollGroupMutation.isPending || coursesLoading || !selectedCourseId}
                   >
                     {enrollGroupMutation.isPending ? (
@@ -461,7 +595,97 @@ export default function GroupsPage() {
                       setSelectedCourseId("")
                       setEnrollError(null)
                     }}
-                    className="flex-1 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10"
+                    className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={openEdit} onOpenChange={setOpenEdit}>
+            <DialogContent className="bg-white border-primary/20">
+              <DialogHeader>
+                <DialogTitle className="text-primary">Edit Group</DialogTitle>
+                <DialogDescription>Update group details and members</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleUpdateGroup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editGroupName" className="text-primary">Group Name</Label>
+                  <Input
+                    id="editGroupName"
+                    placeholder="e.g., Web Development Cohort"
+                    value={editGroupName}
+                    onChange={(e) => setEditGroupName(e.target.value)}
+                    required
+                    className="border-primary/30 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-primary">Select Members</Label>
+                  {membersLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <span className="ml-2 text-sm text-black">Loading members...</span>
+                    </div>
+                  ) : members.length === 0 ? (
+                    <div className="p-4 bg-muted rounded-md">
+                      <p className="text-sm text-black">
+                        No members available in your organization.
+                      </p>
+                    </div>
+                  ) : (
+                    <Select
+                      isMulti
+                      options={memberOptions}
+                      value={memberOptions.filter((option) => editSelectedMembers.includes(option.value))}
+                      onChange={(newValue: MultiValue<{ value: string; label: string; member: OrganizationMember }>) => {
+                        setEditSelectedMembers(newValue ? newValue.map((option: { value: string; label: string; member: OrganizationMember }) => option.value) : [])
+                      }}
+                      styles={selectStyles}
+                      placeholder="Select members..."
+                      isClearable
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  )}
+                </div>
+
+                {editError && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                    <p className="text-sm text-destructive">{editError}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
+                    disabled={updateGroupMutation.isPending || membersLoading || selectedGroupLoading}
+                  >
+                    {updateGroupMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setOpenEdit(false)
+                      setSelectedGroup(null)
+                      setEditGroupName("")
+                      setEditSelectedMembers([])
+                      setEditError(null)
+                    }}
+                    className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
                   >
                     Cancel
                   </Button>
@@ -471,11 +695,11 @@ export default function GroupsPage() {
           </Dialog>
         </div>
 
-        <Card className="border-[#01402E]/20 bg-white">
+        <Card className="border-primary/20 bg-white">
           <CardContent className="p-0">
             {groupsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[#01402E]" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <span className="ml-2 text-sm text-black">Loading groups...</span>
               </div>
             ) : groups.length === 0 ? (
@@ -485,17 +709,17 @@ export default function GroupsPage() {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="border-[#01402E]/20 hover:bg-transparent">
-                    <TableHead className="text-[#01402E]">Name</TableHead>
-                    <TableHead className="text-[#01402E]">Members</TableHead>
+                  <TableRow className="border-primary/20 hover:bg-transparent">
+                    <TableHead className="text-primary">Name</TableHead>
+                    <TableHead className="text-primary">Members</TableHead>
                     <TableHead className="w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {groups.map((group: Group) => (
-                    <TableRow key={group.id} className="border-[#01402E]/20 hover:bg-[#01402E]/5">
+                    <TableRow key={group.id} className="border-primary/20 hover:bg-primary/5">
                       <TableCell>
-                        <Link href={`/org/groups/${group.id}`} className="font-medium text-[#01402E] hover:underline">
+                        <Link href={`/org/groups/${group.id}`} className="font-medium text-primary hover:underline">
                           {group.name}
                         </Link>
                       </TableCell>
@@ -503,22 +727,26 @@ export default function GroupsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="hover:bg-[#01402E]/10">
-                              <MoreHorizontal size={16} className="text-[#01402E]" />
+                            <Button variant="ghost" size="sm" className="hover:bg-primary/10">
+                              <MoreHorizontal size={16} className="text-primary" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-[#01402E]/20">
-                            <DropdownMenuItem onClick={() => handleOpenEnroll(group)} className="hover:bg-[#01402E]/10 text-[#01402E]">
+                          <DropdownMenuContent align="end" className="bg-white border-primary/20">
+                            <DropdownMenuItem onClick={() => handleOpenEnroll(group)} className="hover:bg-primary/10 text-primary">
                               <BookOpen size={16} className="mr-2" />
                               Enroll to Course
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild className="hover:bg-[#01402E]/10">
-                              <Link href={`/org/groups/${group.id}/edit`} className="text-[#01402E]">
-                                <Edit2 size={16} className="mr-2" />
-                                Edit
-                              </Link>
+                            <DropdownMenuItem
+                              onClick={() => handleOpenEdit(group)}
+                              className="hover:bg-primary/10 text-primary"
+                            >
+                              <Edit2 size={16} className="mr-2" />
+                              Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-[#DE1915] hover:bg-[#DE1915]/10">
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(group)}
+                              className="text-destructive hover:bg-destructive/10"
+                            >
                               <Trash2 size={16} className="mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -532,6 +760,42 @@ export default function GroupsPage() {
             )}
           </CardContent>
         </Card>
+        <AlertDialog
+          open={openDeleteDialog}
+          onOpenChange={(open) => {
+            setOpenDeleteDialog(open)
+            if (!open) {
+              setGroupToDelete(null)
+            }
+          }}
+        >
+          <AlertDialogContent className="bg-white border-destructive/20">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive">Delete group?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">{groupToDelete?.name || "this group"}</span>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                onClick={handleConfirmDelete}
+                disabled={deleteGroupMutation.isPending}
+              >
+                {deleteGroupMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   )

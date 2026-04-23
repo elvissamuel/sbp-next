@@ -31,6 +31,7 @@ type ReportResponse = {
     avgCourseProgress: number
     totalQuizzes: number
     quizzesPassed: number
+    quizzesFailed: number
     avgQuizScorePercent: number
   }
   courses: Array<{
@@ -56,10 +57,15 @@ type ReportResponse = {
       totalLessons: number
       quizProgress: number
     }
+    overallScore: {
+      percent: number
+      passed: boolean
+    }
     quizSummary: {
       quizzesTotal: number
       quizzesAttempted: number
       quizzesPassed: number
+      quizzesFailed: number
       avgQuizScorePercent: number
     }
     quizzes: Array<{
@@ -69,6 +75,14 @@ type ReportResponse = {
       totalPoints: number
       status: string
       attemptsCount: number
+      attempts?: Array<{
+        id: string
+        attemptNumber: number
+        score: number
+        percentage: number | null
+        passed: boolean
+        attemptedAt: string
+      }>
       latestAttempt: {
         id: string
         score: number
@@ -111,7 +125,7 @@ export default function EmployeeReportPage() {
 
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold text-[#01402E]">Performance Report</h1>
+            <h1 className="text-3xl font-bold text-primary">Performance Report</h1>
             {data?.user ? (
               <p className="text-black">
                 {data.user.name} ({data.user.email})
@@ -120,7 +134,7 @@ export default function EmployeeReportPage() {
               <p className="text-black">Per-user course performance report</p>
             )}
           </div>
-          <Button asChild variant="outline" className="border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
+          <Button asChild variant="outline" className="border-primary/30 text-primary hover:bg-primary/10">
             <Link href="/org/employee">
               <ChevronLeft size={16} className="mr-2" />
               Back to Employees
@@ -129,74 +143,83 @@ export default function EmployeeReportPage() {
         </div>
 
         {isLoading ? (
-          <Card className="border-[#01402E]/20 bg-white">
+          <Card className="border-primary/20 bg-white">
             <CardContent className="py-12">
               <div className="flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#01402E]" />
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 <span className="ml-2 text-sm text-black">Loading report...</span>
               </div>
             </CardContent>
           </Card>
         ) : error ? (
-          <Card className="border-[#DE1915]/20 bg-white">
+          <Card className="border-destructive/20 bg-white">
             <CardContent className="py-8">
-              <p className="text-[#DE1915] text-sm">{(error as Error).message}</p>
+              <p className="text-destructive text-sm">{(error as Error).message}</p>
             </CardContent>
           </Card>
         ) : !data ? (
-          <Card className="border-[#DE1915]/20 bg-white">
+          <Card className="border-destructive/20 bg-white">
             <CardContent className="py-8">
-              <p className="text-[#DE1915] text-sm">No report data found.</p>
+              <p className="text-destructive text-sm">No report data found.</p>
             </CardContent>
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-[#01402E]/20 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="border-primary/20 bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-black">Courses Completed</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-[#01402E]">
+                  <div className="text-2xl font-bold text-primary">
                     {data.summary.coursesCompleted}/{data.summary.coursesEnrolled}
                   </div>
                   <p className="text-xs text-black">Enrolled courses</p>
                 </CardContent>
               </Card>
-              <Card className="border-[#01402E]/20 bg-white">
+              <Card className="border-primary/20 bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-black">Average Progress</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="text-2xl font-bold text-[#01402E]">{data.summary.avgCourseProgress}%</div>
+                  <div className="text-2xl font-bold text-primary">{data.summary.avgCourseProgress}%</div>
                   <Progress value={data.summary.avgCourseProgress} className="h-2" />
                 </CardContent>
               </Card>
-              <Card className="border-[#01402E]/20 bg-white">
+              <Card className="border-primary/20 bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-black">Quiz Performance</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1">
-                  <div className="text-2xl font-bold text-[#01402E]">{data.summary.avgQuizScorePercent}%</div>
+                  <div className="text-2xl font-bold text-primary">{data.summary.avgQuizScorePercent}%</div>
                   <p className="text-xs text-black">
                     Passed {data.summary.quizzesPassed}/{data.summary.totalQuizzes} quizzes
                   </p>
+                </CardContent>
+              </Card>
+              <Card className="border-destructive/20 bg-white">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-black">Quizzes Failed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">{data.summary.quizzesFailed}</div>
+                  <p className="text-xs text-black">Attempted but not passed</p>
                 </CardContent>
               </Card>
             </div>
 
             <div className="space-y-4">
               {data.courses.length === 0 ? (
-                <Card className="border-[#01402E]/20 bg-white">
+                <Card className="border-primary/20 bg-white">
                   <CardContent className="py-8">
                     <p className="text-black text-sm">This employee is not enrolled in any courses yet.</p>
                   </CardContent>
                 </Card>
               ) : (
                 data.courses.map((courseReport) => (
-                  <Card key={courseReport.course.id} className="border-[#01402E]/20 bg-white">
+                  <Card key={courseReport.course.id} className="border-primary/20 bg-white">
                     <CardHeader>
-                      <CardTitle className="text-[#01402E]">{courseReport.course.title}</CardTitle>
+                      <CardTitle className="text-primary">{courseReport.course.title}</CardTitle>
                       <div className="text-sm text-black">
                         Lessons: {courseReport.progress.completedLessons}/{courseReport.progress.totalLessons}
                         {courseReport.quizSummary.quizzesTotal > 0 ? (
@@ -207,10 +230,22 @@ export default function EmployeeReportPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between rounded-md border border-primary/20 bg-white p-3">
+                        <div>
+                          <div className="text-xs text-black">Overall score</div>
+                          <div className="text-lg font-semibold" style={{ color: courseReport.overallScore.passed ? "var(--org-primary)" : "var(--org-accent)" }}>
+                            {courseReport.overallScore.percent}%
+                          </div>
+                        </div>
+                        <div className="text-sm font-medium" style={{ color: courseReport.overallScore.passed ? "var(--org-primary)" : "var(--org-accent)" }}>
+                          {courseReport.overallScore.passed ? "Passed" : "Failed"}
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-black">Overall progress</span>
-                          <span className="font-medium text-[#01402E]">{courseReport.progress.progress}%</span>
+                          <span className="font-medium text-primary">{courseReport.progress.progress}%</span>
                         </div>
                         <Progress value={courseReport.progress.progress} className="h-2" />
                       </div>
@@ -228,7 +263,7 @@ export default function EmployeeReportPage() {
                         ) : (
                           <div className="space-y-2">
                             {courseReport.quizzes.map((quiz) => (
-                              <div key={quiz.id} className="rounded-md border border-[#01402E]/20 p-3">
+                              <div key={quiz.id} className="rounded-md border border-primary/20 p-3">
                                 <div className="flex items-start justify-between gap-4">
                                   <div>
                                     <div className="font-medium text-black">{quiz.title}</div>
@@ -239,7 +274,7 @@ export default function EmployeeReportPage() {
                                   </div>
                                   <div className="text-right">
                                     {quiz.latestAttempt ? (
-                                      <div className={quiz.latestAttempt.passed ? "text-[#01402E]" : "text-[#DE1915]"}>
+                                      <div className={quiz.latestAttempt.passed ? "text-primary" : "text-destructive"}>
                                         <div className="font-semibold">
                                           {quiz.latestAttempt.percentage !== null ? `${quiz.latestAttempt.percentage}%` : "—"}
                                         </div>
@@ -255,6 +290,15 @@ export default function EmployeeReportPage() {
                                 {quiz.best ? (
                                   <div className="mt-2 text-xs text-black">
                                     Best score: {quiz.best.percentage !== null ? `${quiz.best.percentage}%` : "—"}
+                                  </div>
+                                ) : null}
+                                {quiz.attempts && quiz.attempts.length > 0 ? (
+                                  <div className="mt-2 text-xs text-black space-y-1">
+                                    {quiz.attempts.map((a) => (
+                                      <div key={a.id}>
+                                        Attempt {a.attemptNumber}: {a.percentage !== null ? `${a.percentage}%` : "—"}
+                                      </div>
+                                    ))}
                                   </div>
                                 ) : null}
                               </div>
