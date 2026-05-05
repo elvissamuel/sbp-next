@@ -61,7 +61,7 @@ export default function ClassroomLessonView() {
           <Card className="border-[#DE1915]/20 bg-white">
             <CardContent className="pt-6">
               <p className="text-[#DE1915]">This course has expired and can no longer be taken.</p>
-              <Button variant="outline" asChild className="mt-4 border-[#01402E]/30 text-[#01402E] hover:bg-[#01402E]/10">
+              <Button variant="outline" asChild className="mt-4 border-primary/30 text-primary hover:bg-primary/10">
                 <Link href="/dashboard">Back to Dashboard</Link>
               </Button>
             </CardContent>
@@ -237,7 +237,7 @@ export default function ClassroomLessonView() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px] bg-white">
-          <Loader2 className="h-8 w-8 animate-spin text-[#65B32E]" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </DashboardLayout>
     )
@@ -249,7 +249,7 @@ export default function ClassroomLessonView() {
         <Card className="border-[#DE1915]/20 bg-white">
           <CardContent className="pt-6">
             <p className="text-[#DE1915]">Lesson not found.</p>
-            <Button variant="outline" asChild className="mt-4 border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10">
+            <Button variant="outline" asChild className="mt-4 border-accent/30 text-accent hover:bg-accent/10">
               <Link href={`/classroom/course/${slug}`}>Back to Course</Link>
             </Button>
           </CardContent>
@@ -260,13 +260,13 @@ export default function ClassroomLessonView() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-[calc(100vh-64px)] bg-[#FAFAFA]">
+      <div className="min-h-[calc(100vh-64px)] bg-muted/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="space-y-6">
             <Dialog open={isReflectionOpen} onOpenChange={setIsReflectionOpen}>
-              <DialogContent className="bg-white">
+              <DialogContent className="bg-white border-primary/20">
                 <DialogHeader>
-                  <DialogTitle>Quick Question</DialogTitle>
+                  <DialogTitle className="text-primary">Quick Question</DialogTitle>
                   <DialogDescription>
                     Answer the question below to continue to the next lesson.
                   </DialogDescription>
@@ -281,14 +281,23 @@ export default function ClassroomLessonView() {
                     onChange={(e) => setReflectionAnswer(e.target.value)}
                     placeholder="Type your answer..."
                     rows={4}
+                    className="border-primary/30 focus-visible:border-primary"
                   />
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsReflectionOpen(false)}>
+                  <Button
+                    variant="outline"
+                    className="border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => setIsReflectionOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={handleSubmitReflection} disabled={markCompleteMutation.isPending}>
+                  <Button
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    onClick={handleSubmitReflection}
+                    disabled={markCompleteMutation.isPending}
+                  >
                     Continue
                   </Button>
                 </DialogFooter>
@@ -297,7 +306,7 @@ export default function ClassroomLessonView() {
 
             <div className="flex items-center justify-center">
               <div
-                className={`w-full max-w-2xl grid bg-[#EFEFEF] rounded-sm overflow-hidden ${
+                className={`w-full max-w-2xl grid bg-muted rounded-sm overflow-hidden ${
                   ENABLE_SLIDES ? "grid-cols-3" : "grid-cols-2"
                 }`}
               >
@@ -306,7 +315,7 @@ export default function ClassroomLessonView() {
                   onClick={() => setViewMode("speech")}
                   disabled={!hasText}
                   className={`h-10 text-sm transition ${
-                    viewMode === "speech" ? "bg-[#0F766E] text-white" : "text-muted-foreground"
+                    viewMode === "speech" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                   } ${!hasText ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}`}
                 >
                   Speech to text
@@ -317,7 +326,7 @@ export default function ClassroomLessonView() {
                     onClick={() => setViewMode("slide")}
                     disabled={!hasSlides}
                     className={`h-10 text-sm transition ${
-                      viewMode === "slide" ? "bg-[#0F766E] text-white" : "text-muted-foreground"
+                      viewMode === "slide" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                     } ${!hasSlides ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}`}
                   >
                     Slide
@@ -328,7 +337,7 @@ export default function ClassroomLessonView() {
                   onClick={() => setViewMode("video")}
                   disabled={!hasVideo}
                   className={`h-10 text-sm transition ${
-                    viewMode === "video" ? "bg-[#0F766E] text-white" : "text-muted-foreground"
+                    viewMode === "video" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                   } ${!hasVideo ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}`}
                 >
                   video
@@ -337,19 +346,19 @@ export default function ClassroomLessonView() {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Link href={`/classroom/course/${slug}`} className="inline-flex items-center hover:text-foreground">
+              <Link href={`/classroom/course/${slug}`} className="inline-flex items-center hover:text-primary">
                 <ChevronLeft size={16} className="mr-1" />
                 Back To Courses
               </Link>
             </div>
 
-            <div className="border border-[#CFF3E7] bg-white rounded-sm px-6 py-4">
+            <div className="border border-primary/20 bg-white rounded-sm px-6 py-4">
               <p className="text-xs text-muted-foreground">
                 {lessonOnlyIndex >= 0 ? lessonOnlyIndex + 1 : "?"} of {lessons.length} lessons
               </p>
-              <div className="mt-2 h-1.5 w-full rounded-full bg-[#D9D9D9] overflow-hidden">
+              <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full bg-[#62C2A3]"
+                  className="h-full bg-primary"
                   style={{
                     width:
                       lessons.length > 0 && lessonOnlyIndex >= 0
@@ -361,7 +370,7 @@ export default function ClassroomLessonView() {
             </div>
 
             <div>
-              <h1 className="text-3xl font-bold text-[#111827] leading-tight">{lesson.title}</h1>
+              <h1 className="text-3xl font-bold text-foreground leading-tight">{lesson.title}</h1>
             </div>
 
             {viewMode === "slide" && hasSlides && (
@@ -382,7 +391,7 @@ export default function ClassroomLessonView() {
 
             {viewMode === "speech" && hasText && (
               <div className="space-y-4">
-                <div className="bg-white rounded-lg border border-border/40 overflow-hidden">
+                <div className="bg-white rounded-lg border border-primary/15 overflow-hidden">
                   <div className="p-6">
                     <div
                       className="prose prose-sm max-w-none text-muted-foreground"
@@ -397,7 +406,7 @@ export default function ClassroomLessonView() {
               {!isCurrentLessonCompleted && (
                 <div className="flex justify-end">
                   <Button
-                    className="h-10 px-10 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white"
+                    className="h-10 px-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={handleMarkComplete}
                     disabled={markCompleteMutation.isPending}
                   >
@@ -418,7 +427,7 @@ export default function ClassroomLessonView() {
                   {previousItem ? (
                     <Button
                       asChild
-                      className="h-10 px-10 rounded-md bg-[#E5E7EB] hover:bg-[#E5E7EB]/90 text-[#111827]"
+                      className="h-10 px-10 rounded-md bg-muted hover:bg-muted/80 text-foreground"
                     >
                       <Link
                         href={
@@ -435,7 +444,7 @@ export default function ClassroomLessonView() {
                   )}
 
                   {nextItem ? (
-                    <Button asChild className="h-10 px-16 rounded-md bg-[#0F766E] hover:bg-[#0F766E]/90 text-white">
+                    <Button asChild className="h-10 px-16 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground">
                       <Link
                         href={
                           nextItem.type === "lesson"

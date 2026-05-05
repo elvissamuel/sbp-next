@@ -238,13 +238,13 @@ export default function CreateCoursePage() {
       <div className="max-w-2xl space-y-6 bg-white">
         <AppBreadcrumbs />
         <div>
-          <h1 className="text-3xl font-bold text-secondary">Create Course</h1>
-          <p className="text-muted-foreground">Create a new course for your organization</p>
+          <h1 className="text-3xl font-bold text-primary">Create Course</h1>
+          <p className="text-black">Create a new course for your organization</p>
         </div>
 
-        <Card className="border-secondary/20 bg-white">
+        <Card className="border-primary/20 bg-white">
           <CardHeader>
-            <CardTitle className="text-secondary">Course Details</CardTitle>
+            <CardTitle className="text-primary">Course Details</CardTitle>
             <CardDescription>Provide basic information about your course</CardDescription>
           </CardHeader>
           <CardContent>
@@ -287,9 +287,9 @@ export default function CreateCoursePage() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-secondary">Course Title</FormLabel>
+                      <FormLabel className="text-primary">Course Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter course title" {...field} className="border-secondary/30 focus:border-secondary" />
+                        <Input placeholder="Enter course title" {...field} className="border-primary/30 focus:border-primary" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -301,9 +301,9 @@ export default function CreateCoursePage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-secondary">Description</FormLabel>
+                      <FormLabel className="text-primary">Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Describe your course..." rows={4} {...field} className="border-secondary/30 focus:border-secondary" />
+                        <Textarea placeholder="Describe your course..." rows={4} {...field} className="border-primary/30 focus:border-primary" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -315,7 +315,7 @@ export default function CreateCoursePage() {
                   name="deadline"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-secondary">Course Deadline (optional)</FormLabel>
+                      <FormLabel className="text-primary">Course Deadline (optional)</FormLabel>
                       <FormControl>
                         <Input
                           type="datetime-local"
@@ -328,7 +328,7 @@ export default function CreateCoursePage() {
                             const value = e.target.value
                             field.onChange(value ? new Date(value) : undefined)
                           }}
-                          className="border-secondary/30 focus:border-secondary"
+                          className="border-primary/30 focus:border-primary"
                         />
                       </FormControl>
                       <FormDescription>
@@ -344,13 +344,13 @@ export default function CreateCoursePage() {
                   name="thumbnail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-secondary">Course Thumbnail</FormLabel>
+                      <FormLabel className="text-primary">Course Thumbnail</FormLabel>
                       <FormControl>
                         <div className="space-y-4">
                           {/* Image Preview */}
                           {thumbnailPreview && (
                             <div className="relative inline-block">
-                              <div className="relative w-full max-w-xs h-48 border-2 border-secondary/20 rounded-lg overflow-hidden bg-muted">
+                              <div className="relative w-full max-w-xs h-48 border-2 border-primary/20 rounded-lg overflow-hidden bg-muted">
                                 <img
                                   src={thumbnailPreview}
                                   alt="Course thumbnail preview"
@@ -387,18 +387,18 @@ export default function CreateCoursePage() {
                                 className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                                   isUploadingImage
                                     ? "border-muted-foreground/50 bg-muted/50 cursor-not-allowed"
-                                    : "border-secondary/30 hover:border-secondary hover:bg-secondary/5"
+                                    : "border-primary/30 hover:border-primary hover:bg-primary/5"
                                 }`}
                               >
                                 {isUploadingImage ? (
                                   <>
-                                    <Loader2 className="w-8 h-8 text-secondary animate-spin mb-2" />
+                                    <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
                                     <p className="text-sm text-muted-foreground">Uploading...</p>
                                   </>
                                 ) : (
                                   <>
-                                    <Upload className="w-8 h-8 text-secondary mb-2" />
-                                    <p className="text-sm text-secondary font-medium">
+                                    <Upload className="w-8 h-8 text-primary mb-2" />
+                                    <p className="text-sm text-primary font-medium">
                                       Click to upload thumbnail
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
@@ -429,7 +429,7 @@ export default function CreateCoursePage() {
                     <FormItem>
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-secondary">Publish Course</FormLabel>
+                          <FormLabel className="text-primary">Publish Course</FormLabel>
                           <FormDescription>Make the course visible to students</FormDescription>
                         </div>
                         <FormControl>
@@ -449,12 +449,12 @@ export default function CreateCoursePage() {
                 <div className="flex gap-3">
                   <Button
                     type="submit"
-                    className="flex-1 bg-secondary hover:bg-secondary/90 text-white"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
                     disabled={createCourseMutation.isPending || freeCourseLimitReached}
                   >
                     {createCourseMutation.isPending ? "Creating..." : "Create Course"}
                   </Button>
-                  <Button type="button" variant="outline" className="flex-1 border-secondary/30 text-secondary hover:bg-secondary/10" asChild>
+                  <Button type="button" variant="outline" className="flex-1 border-primary/30 text-primary hover:bg-primary/10" asChild>
                     <Link href="/org/course">Cancel</Link>
                   </Button>
                 </div>
