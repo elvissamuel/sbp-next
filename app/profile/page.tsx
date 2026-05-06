@@ -2,27 +2,130 @@
 
 import type React from "react"
 
+import Link from "next/link"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Separator } from "@/components/ui/separator"
-import { getCurrentUser } from "@/lib/session"
-import { getUserFullName } from "@/lib/utils/user"
+import { getCurrentUser, updateUserInSession } from "@/lib/session"
+import { resolveFirstLastForProfile } from "@/lib/utils/user"
+import { changeUserPassword, getUserProfile, updateUserProfile } from "@/lib/api-calls"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 export default function ProfilePage() {
+  const queryClient = useQueryClient()
   const currentUser = getCurrentUser()
+  const userId = currentUser?.id || ""
+  const sessionNames = resolveFirstLastForProfile(
+    currentUser?.firstName,
+    currentUser?.lastName,
+    currentUser?.name
+  )
+
   const [formData, setFormData] = useState({
-    firstName: currentUser?.firstName || "",
-    lastName: currentUser?.lastName || "",
-    email: currentUser?.email || "",
+    firstName: sessionNames.firstName,
+    lastName: sessionNames.lastName,
+    email: currentUser?.email ?? "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
-  const [saved, setSaved] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
+
+  const { data: profileResponse, isLoading: profileLoading } = useQuery({
+    queryKey: ["user-profile", userId],
+    queryFn: () => getUserProfile(userId),
+    enabled: !!userId,
+  })
+
+  useEffect(() => {
+    const p = profileResponse?.data
+    if (!p) return
+    const resolved = resolveFirstLastForProfile(p.firstName, p.lastName, p.name)
+    setFormData((prev) => ({
+      ...prev,
+      firstName: resolved.firstName,
+      lastName: resolved.lastName,
+      email: p.email ?? "",
+    }))
+  }, [profileResponse])
+
+  const updateProfileMutation = useMutation({
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error("You must be signed in to update your profile")
+      }
+      return updateUserProfile({
+        userId,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+      })
+    },
+    onSuccess: (response) => {
+      if (response.data) {
+        setProfileError(null)
+        updateUserInSession({
+          email: response.data.email,
+          firstName: response.data.firstName,
+          lastName: response.data.lastName,
+          name: response.data.name,
+        })
+        window.dispatchEvent(new Event("session-changed"))
+        void queryClient.invalidateQueries({ queryKey: ["user-profile", userId] })
+        toast.success("Profile updated", {
+          description: "Your account details have been saved.",
+        })
+        return
+      }
+      const msg = response.error?.message || "Failed to update profile."
+      setProfileError(msg)
+      toast.error("Could not update profile", { description: msg })
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to update profile."
+      setProfileError(msg)
+      toast.error("Could not update profile", { description: msg })
+    },
+  })
+
+  const changePasswordMutation = useMutation({
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error("You must be signed in")
+      }
+      return changeUserPassword({
+        userId,
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+      })
+    },
+    onSuccess: (response) => {
+      if (response.data?.success) {
+        toast.success("Password updated", {
+          description: "You can use your new password next time you sign in.",
+        })
+        setFormData((prev) => ({
+          ...prev,
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        }))
+        return
+      }
+      const msg = response.error?.message || "Failed to change password."
+      toast.error("Could not change password", { description: msg })
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to change password."
+      toast.error("Could not change password", { description: msg })
+    },
+  })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -31,25 +134,39 @@ export default function ProfilePage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement profile update API
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setProfileError(null)
+    updateProfileMutation.mutate()
   }
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.newPassword !== formData.confirmPassword) {
-      alert("Passwords do not match")
+      toast.error("Passwords do not match", {
+        description: "New password and confirmation must be the same.",
+      })
       return
     }
-    // TODO: Implement password change API
-    alert("Password changed successfully")
-    setFormData((prev) => ({
-      ...prev,
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    }))
+    changePasswordMutation.mutate()
+  }
+
+  if (!userId) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-3xl space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile</CardTitle>
+              <CardDescription>Sign in to view and edit your profile.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/auth/signin">Sign in</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -60,61 +177,76 @@ export default function ProfilePage() {
           <p className="text-muted-foreground">Manage your account information and security</p>
         </div>
 
-        {/* Profile Information */}
         <Card className="border-border/50">
           <CardHeader>
             <CardTitle>Profile Information</CardTitle>
             <CardDescription>Update your personal information</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  placeholder="Enter your first name"
-                />
+            {profileLoading ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Loading profile...
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  placeholder="Enter your last name"
-                />
-              </div>
+            ) : (
+              <form onSubmit={handleSave} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    placeholder="Enter your first name"
+                    autoComplete="given-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    placeholder="Enter your last name"
+                    autoComplete="family-name"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter your email"
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="Enter your email"
+                    autoComplete="email"
+                  />
+                </div>
 
-              {saved && (
-                <p className="text-sm text-green-600 bg-green-50 p-3 rounded-md">Profile updated successfully!</p>
-              )}
+                {profileError && (
+                  <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{profileError}</p>
+                )}
 
-              <Button type="submit" className="w-full">
-                Save Changes
-              </Button>
-            </form>
+                <Button type="submit" className="w-full" disabled={updateProfileMutation.isPending}>
+                  {updateProfileMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
 
         <Separator />
 
-        {/* Change Password */}
         <Card className="border-border/50">
           <CardHeader>
             <CardTitle>Change Password</CardTitle>
@@ -131,6 +263,8 @@ export default function ProfilePage() {
                   value={formData.currentPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
+                  autoComplete="current-password"
+                  disabled={changePasswordMutation.isPending}
                 />
               </div>
 
@@ -142,7 +276,9 @@ export default function ProfilePage() {
                   type="password"
                   value={formData.newPassword}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  disabled={changePasswordMutation.isPending}
                 />
               </div>
 
@@ -155,11 +291,20 @@ export default function ProfilePage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
+                  autoComplete="new-password"
+                  disabled={changePasswordMutation.isPending}
                 />
               </div>
 
-              <Button type="submit" className="w-full">
-                Update Password
+              <Button type="submit" className="w-full" disabled={changePasswordMutation.isPending || profileLoading}>
+                {changePasswordMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Password"
+                )}
               </Button>
             </form>
           </CardContent>
@@ -167,7 +312,6 @@ export default function ProfilePage() {
 
         <Separator />
 
-        {/* Delete Account */}
         <Card className="border-destructive/50 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-destructive">Danger Zone</CardTitle>

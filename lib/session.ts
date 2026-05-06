@@ -73,6 +73,30 @@ export function getCurrentUser(): UserSession["user"] | null {
 }
 
 /**
+ * Update the signed-in user in session (and legacy `user` storage).
+ */
+export function updateUserInSession(
+  updates: Partial<Pick<UserSession["user"], "email" | "firstName" | "lastName" | "name">>
+): void {
+  if (typeof window === "undefined") return;
+
+  const session = getSession();
+  if (!session) return;
+
+  const user = { ...session.user, ...updates };
+  setSession({
+    ...session,
+    user,
+  });
+
+  try {
+    localStorage.setItem("user", JSON.stringify(user));
+  } catch (error) {
+    console.error("Error updating legacy user storage:", error);
+  }
+}
+
+/**
  * Get user's organizations
  */
 export function getUserOrganizations(): UserSession["organizations"] {
@@ -115,6 +139,28 @@ export function updateOrganizationInSession(
   const organizations = session.organizations.map((org) =>
     org.id === organizationId ? { ...org, ...updates } : org
   );
+
+  setSession({
+    ...session,
+    organizations,
+  });
+}
+
+/**
+ * Remove an organization from the session. Clears the session if none remain.
+ */
+export function removeOrganizationFromSession(organizationId: string): void {
+  if (typeof window === "undefined") return;
+
+  const session = getSession();
+  if (!session) return;
+
+  const organizations = session.organizations.filter((org) => org.id !== organizationId);
+
+  if (organizations.length === 0) {
+    clearSession();
+    return;
+  }
 
   setSession({
     ...session,

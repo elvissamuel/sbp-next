@@ -57,22 +57,8 @@ export function DashboardLayout({
   // Load user and role data on client side only to avoid hydration mismatch
   useEffect(() => {
     setIsMounted(true)
-    const currentUser = getCurrentUser()
-    const primaryOrg = getPrimaryOrganization()
-    setUser(currentUser)
-    setUserRole(primaryOrg?.role || "member")
-    setOrganizationLogo(primaryOrg?.logo || "/Seplat-logo.jpg")
 
-    // Apply any cached org theme immediately to avoid refresh flash.
-    if (primaryOrg) {
-      applyOrganizationTheme({
-        themePrimaryColor: primaryOrg.themePrimaryColor,
-        themeSecondaryColor: primaryOrg.themeSecondaryColor,
-        themeAccentColor: primaryOrg.themeAccentColor,
-      })
-    }
-
-    const loadOrganizationTheme = async () => {
+    const loadOrganizationTheme = async (primaryOrg: ReturnType<typeof getPrimaryOrganization>) => {
       if (!primaryOrg?.id) return
 
       const response = await getOrganizationSettings(primaryOrg.id)
@@ -85,7 +71,29 @@ export function DashboardLayout({
       }
     }
 
-    void loadOrganizationTheme()
+    const loadSession = () => {
+      const currentUser = getCurrentUser()
+      const primaryOrg = getPrimaryOrganization()
+      setUser(currentUser)
+      setUserRole(primaryOrg?.role || "member")
+      setOrganizationLogo(primaryOrg?.logo || "/Seplat-logo.jpg")
+
+      if (primaryOrg) {
+        applyOrganizationTheme({
+          themePrimaryColor: primaryOrg.themePrimaryColor,
+          themeSecondaryColor: primaryOrg.themeSecondaryColor,
+          themeAccentColor: primaryOrg.themeAccentColor,
+        })
+      }
+
+      void loadOrganizationTheme(primaryOrg)
+    }
+
+    loadSession()
+    window.addEventListener("session-changed", loadSession)
+    return () => {
+      window.removeEventListener("session-changed", loadSession)
+    }
   }, [])
 
   // Keep logo in sync when session organization changes (e.g. after settings save).

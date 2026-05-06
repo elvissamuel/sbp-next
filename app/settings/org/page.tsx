@@ -12,8 +12,25 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Loader2, Upload } from "lucide-react"
-import { getCurrentUser, getPrimaryOrganization, updateOrganizationInSession } from "@/lib/session"
+import { useRouter } from "next/navigation"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  getCurrentUser,
+  getPrimaryOrganization,
+  removeOrganizationFromSession,
+  updateOrganizationInSession,
+} from "@/lib/session"
+import {
+  deleteOrganization,
   getOrganizationSettings,
   updateOrganizationSettings,
   uploadOrganizationLogo,
@@ -22,6 +39,7 @@ import { applyOrganizationTheme } from "@/lib/theme"
 import { toast } from "sonner"
 
 export default function OrganizationSettingsPage() {
+  const router = useRouter()
   const primaryOrganization = getPrimaryOrganization()
   const currentUser = getCurrentUser()
   const organizationId = primaryOrganization?.id || ""
@@ -37,6 +55,7 @@ export default function OrganizationSettingsPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasInitializedForm, setHasInitializedForm] = useState(false)
+  const [openDeleteOrgDialog, setOpenDeleteOrgDialog] = useState(false)
 
   const { data: settingsResponse, isLoading } = useQuery({
     queryKey: ["organization-settings", organizationId],
@@ -194,6 +213,43 @@ export default function OrganizationSettingsPage() {
     }
 
     updateSettingsMutation.mutate()
+  }
+
+  const deleteOrganizationMutation = useMutation({
+    mutationFn: () => {
+      if (!organizationId || !currentUser?.id) {
+        throw new Error("Missing organization or user context")
+      }
+      return deleteOrganization(organizationId, currentUser.id)
+    },
+    onSuccess: (response) => {
+      if (response.data?.success) {
+        removeOrganizationFromSession(organizationId)
+        setOpenDeleteOrgDialog(false)
+        toast.success("Organization deleted", {
+          description: "All organization data has been removed.",
+        })
+        router.push("/")
+        return
+      }
+      const errorMsg = response.error?.message || "Failed to delete organization."
+      toast.error("Could not delete organization", {
+        description: errorMsg,
+      })
+    },
+    onError: (mutationError: unknown) => {
+      const errorMessage =
+        mutationError instanceof Error && typeof mutationError.message === "string"
+          ? mutationError.message
+          : "Failed to delete organization."
+      toast.error("Could not delete organization", {
+        description: errorMessage,
+      })
+    },
+  })
+
+  const handleConfirmDeleteOrganization = () => {
+    deleteOrganizationMutation.mutate()
   }
 
   return (
@@ -377,9 +433,58 @@ export default function OrganizationSettingsPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Deleting your organization will permanently remove all associated data.
             </p>
-            <Button variant="destructive">Delete Organization</Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setOpenDeleteOrgDialog(true)}
+              disabled={!organizationId || !currentUser?.id}
+            >
+              Delete Organization
+            </Button>
           </CardContent>
         </Card>
+
+        <AlertDialog
+          open={openDeleteOrgDialog}
+          onOpenChange={(open) => {
+            setOpenDeleteOrgDialog(open)
+          }}
+        >
+          <AlertDialogContent className="bg-white border-destructive/20">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive">Delete organization?</AlertDialogTitle>
+              <AlertDialogDescription className="text-left space-y-2">
+                <span className="block">
+                  This permanently deletes this organization and every record linked to it, including
+                  members, subscriptions, courses, groups, departments, and other related data.
+                </span>
+                <span className="block font-medium text-foreground">
+                  This cannot be undone. Only continue if you are certain.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteOrganizationMutation.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleConfirmDeleteOrganization()
+                }}
+                disabled={deleteOrganizationMutation.isPending}
+              >
+                {deleteOrganizationMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Yes, delete organization"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   )

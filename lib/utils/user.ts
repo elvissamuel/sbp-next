@@ -3,6 +3,34 @@
  */
 
 /**
+ * Prefer stored first/last; if both are empty, split legacy `name` (e.g. "Jane Doe")
+ * for forms and profile APIs.
+ */
+export function resolveFirstLastForProfile(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+  displayName: string | null | undefined
+): { firstName: string; lastName: string } {
+  const f = (firstName ?? "").trim()
+  const l = (lastName ?? "").trim()
+  if (f || l) {
+    return { firstName: f, lastName: l }
+  }
+  const n = (displayName ?? "").trim()
+  if (!n) {
+    return { firstName: "", lastName: "" }
+  }
+  const parts = n.split(/\s+/).filter(Boolean)
+  if (parts.length === 0) {
+    return { firstName: "", lastName: "" }
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "" }
+  }
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") }
+}
+
+/**
  * Gets the full name from firstName and lastName
  * Falls back to provided name if firstName/lastName are not available
  */

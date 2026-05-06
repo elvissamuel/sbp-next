@@ -79,6 +79,55 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  export type UserProfile = {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    name: string | null;
+  };
+
+  export const getUserProfile = async (userId: string): Promise<IApiResponse<UserProfile>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(
+      await fetch(`${baseUrl}/api/users/me?userId=${encodeURIComponent(userId)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+  };
+
+  export const updateUserProfile = async (data: {
+    userId: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  }): Promise<IApiResponse<UserProfile>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(
+      await fetch(`${baseUrl}/api/users/me`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+    );
+  };
+
+  export const changeUserPassword = async (data: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<IApiResponse<{ success: boolean }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(
+      await fetch(`${baseUrl}/api/users/me/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+    );
+  };
+
   export const createCourse = async (input: z.infer<typeof CreateCourseSchema>): Promise<IApiResponse<Course>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/courses`, {
@@ -731,6 +780,20 @@ export type OrganizationSettings = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }));
+  };
+
+  export const deleteOrganization = async (
+    organizationId: string,
+    requesterUserId: string
+  ): Promise<IApiResponse<{ success: boolean }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(
+      await fetch(`${baseUrl}/api/organizations/${organizationId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requesterUserId }),
+      })
+    );
   };
 
   export const uploadOrganizationLogo = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
