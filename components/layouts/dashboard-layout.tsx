@@ -270,32 +270,32 @@ export function DashboardLayout({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 rounded-sm hover:bg-muted">
-                    <div className="w-7 h-7 bg-secondary rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                  <Button variant="ghost" size="sm" className="h-8 px-2 rounded-sm hover:bg-primary/10">
+                    <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center text-white text-xs font-semibold">
                       {userInitials}
                     </div>
-                    <span className="ml-2 text-sm text-foreground hidden sm:inline">{userFullName}</span>
-                    <ChevronDown size={14} className="ml-1 text-muted-foreground" />
+                    <span className="ml-2 text-sm text-primary hidden sm:inline">{userFullName}</span>
+                    <ChevronDown size={14} className="ml-1 text-primary" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border border-secondary/20">
+                <DropdownMenuContent align="end" className="w-56 bg-white border border-primary/20">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-secondary">{displayEmail}</p>
+                    <p className="text-sm font-medium" style={{ color: "var(--primary)" }}>{displayEmail}</p>
                   </div>
-                  <DropdownMenuSeparator className="bg-secondary/20" />
-                  <DropdownMenuItem asChild className="hover:bg-secondary/10 focus:bg-secondary/10">
+                  <DropdownMenuSeparator className="bg-primary/20" />
+                  <DropdownMenuItem asChild className="hover:bg-primary/10 focus:bg-primary/10 focus:text-primary">
                     <Link href="/profile" className="cursor-pointer text-foreground">
-                      <User size={16} className="mr-2 text-secondary" />
+                      <User size={16} className="mr-2" style={{ color: "var(--primary)" }} />
                       Profile Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="hover:bg-secondary/10 focus:bg-secondary/10">
+                  <DropdownMenuItem asChild className="hover:bg-primary/10 focus:bg-primary/10 focus:text-primary">
                     <Link href="/settings/billing" className="cursor-pointer text-foreground">
-                      <Settings size={16} className="mr-2 text-secondary" />
+                      <Settings size={16} className="mr-2" style={{ color: "var(--primary)" }} />
                       Billing
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-secondary/20" />
+                  <DropdownMenuSeparator className="bg-primary/20" />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-destructive/10 focus:bg-destructive/10 text-destructive">
                     <LogOut size={16} className="mr-2" />
                     Sign Out
