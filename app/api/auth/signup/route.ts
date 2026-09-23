@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
           name: `${firstName} ${lastName}`, // Keep name for backward compatibility
           jobTitle: jobTitle || null,
           department: department || null,
+          // Invited members already proved access to this inbox by opening the invite.
+          emailVerified: isInviteFlow ? new Date() : null,
         },
       })
 
@@ -124,22 +126,25 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Generate email verification token
-      const verificationToken = uuidv4()
-      const hashedToken = await hashPassword(verificationToken)
+      let verificationToken: string | null = null
 
-      // Create email verification record
-      await tx.emailVerification.create({
-        data: {
-          userId: user.id,
-          token: hashedToken,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-        },
-      })
+      if (!isInviteFlow) {
+        verificationToken = uuidv4()
+        const hashedToken = await hashPassword(verificationToken)
+
+        await tx.emailVerification.create({
+          data: {
+            userId: user.id,
+            token: hashedToken,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
+        })
+      }
 
       return { user, verificationToken, organization }
     })
 
+    if (!isInviteFlow && result.verificationToken) {
     // Generate verification link
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BROWSER_URL || "http://localhost:3000"
     const verificationLink = `${baseUrl}/auth/verify-email/${result.user.id}/${result.verificationToken}`
@@ -189,6 +194,7 @@ export async function POST(request: NextRequest) {
       const errorMessage = emailError?.message || "Failed to send verification email"
       throw new Error(`Email sending failed: ${errorMessage}. Account creation was rolled back.`)
     }
+    }
 
     return NextResponse.json(
       {
@@ -201,7 +207,9 @@ export async function POST(request: NextRequest) {
             ? `${result.user.firstName} ${result.user.lastName}` 
             : result.user.name,
         },
-        message: "Account created. Please verify your email.",
+        message: isInviteFlow
+          ? "Account created. You can sign in."
+          : "Account created. Please verify your email.",
       },
       { status: 201 },
     )

@@ -6,6 +6,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
 import { Prisma } from "@prisma/client"
 
+const SYSTEM_ORG_SLUG = "system-default-courses"
+
 // Invite a member to an organization
 export async function POST(request: NextRequest) {
   try {
@@ -93,22 +95,31 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
     const signupLink = `${baseUrl}/auth/signup?email=${encodeURIComponent(email)}&invite=true&orgId=${organizationId}&role=${role}`
 
-    // If user exists, add them immediately
+    // If user exists, add them immediately unless they already belong to an organization
     if (user) {
-      // Check if user is already a member
-      const existingMember = await prisma.organizationMember.findUnique({
-        where: {
-          organizationId_userId: {
-            organizationId,
-            userId: user.id,
-          },
+      const memberships = await prisma.organizationMember.findMany({
+        where: { userId: user.id },
+        select: {
+          organizationId: true,
+          organization: { select: { slug: true } },
         },
       })
 
-      if (existingMember) {
+      const organizationMemberships = memberships.filter(
+        (membership) => membership.organization.slug !== SYSTEM_ORG_SLUG
+      )
+
+      if (organizationMemberships.some((membership) => membership.organizationId === organizationId)) {
         return NextResponse.json(
           { error: "User is already a member of this organization" },
           { status: 400 }
+        )
+      }
+
+      if (organizationMemberships.length > 0) {
+        return NextResponse.json(
+          { error: "This email already belongs to another organization and cannot be invited." },
+          { status: 409 }
         )
       }
 

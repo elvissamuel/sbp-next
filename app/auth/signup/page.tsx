@@ -36,7 +36,6 @@ function SignUpForm() {
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [userId, setUserId] = useState("")
 
   const { data: departmentsResponse, isLoading: departmentsLoading } = useQuery({
     queryKey: ["departments", orgId],
@@ -138,10 +137,11 @@ function SignUpForm() {
         return
       }
 
-      // Store userId for verification email
-      setUserId(data.user.id)
+      if (isInvite) {
+        router.push("/auth/signin")
+        return
+      }
 
-      // Redirect to email verification page
       router.push(`/auth/verify-email?userId=${data.user.id}`)
     } catch (err) {
       setError("Failed to create account. Please try again.")
