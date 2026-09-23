@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, type ComponentRef } from "react"
 import JoditEditor from "jodit-react"
 
 interface JoditLessonEditorProps {
@@ -10,7 +10,7 @@ interface JoditLessonEditorProps {
 }
 
 export function JoditLessonEditor({ value, onChange, disabled = false }: JoditLessonEditorProps) {
-  const editorRef = useRef<JoditEditor>(null)
+  const editorRef = useRef<ComponentRef<typeof JoditEditor>>(null)
 
   const config = useMemo(
     () => ({
@@ -19,6 +19,10 @@ export function JoditLessonEditor({ value, onChange, disabled = false }: JoditLe
       toolbarSticky: false,
       height: 360,
       placeholder: "Start writing lesson content...",
+      askBeforePasteHTML: false,
+      askBeforePasteFromWord: false,
+      defaultActionOnPaste: "insert_as_html" as const,
+      defaultActionOnPasteFromWord: "insert_as_html" as const,
       buttons:
         "bold,italic,underline,strikethrough,|,ul,ol,|,fontsize,paragraph,|,brush,forecolor,backcolor,|,link,|,undo,redo,|,hr,|,source",
     }),

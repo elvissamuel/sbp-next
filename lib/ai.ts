@@ -13,7 +13,7 @@ if (!apiKey) {
   console.warn("Warning: GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY environment variable is not set")
 }
 
-export const geminiModel = google("gemini-2.0-flash")
+export const geminiModel = google("gemini-3.6-flash")
 
 /** Strip markdown fences / document wrappers so Jodit receives a clean HTML fragment. */
 function normalizeLessonHtml(raw: string): string {
