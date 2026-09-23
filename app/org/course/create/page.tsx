@@ -235,6 +235,29 @@ export default function CreateCoursePage() {
 
   return (
     <DashboardLayout>
+      <style>{`
+        .publish-toggle {
+          cursor: pointer !important;
+          border: 2px solid var(--primary) !important;
+          opacity: 1 !important;
+        }
+        .publish-toggle[data-state="unchecked"] {
+          background-color: #c4c4c4 !important;
+        }
+        .publish-toggle[data-state="unchecked"]:hover {
+          background-color: #a3a3a3 !important;
+        }
+        .publish-toggle[data-state="unchecked"] [data-slot="switch-thumb"] {
+          background-color: var(--primary) !important;
+          box-shadow: 0 1px 3px rgb(0 0 0 / 0.35) !important;
+        }
+        .publish-toggle[data-state="checked"] {
+          background-color: var(--primary) !important;
+        }
+        .publish-toggle[data-state="checked"] [data-slot="switch-thumb"] {
+          background-color: white !important;
+        }
+      `}</style>
       <div className="max-w-2xl space-y-6 bg-white">
         <AppBreadcrumbs />
         <div>
@@ -328,7 +351,7 @@ export default function CreateCoursePage() {
                             const value = e.target.value
                             field.onChange(value ? new Date(value) : undefined)
                           }}
-                          className="border-primary/30 focus:border-primary"
+                          className="deadline-input cursor-pointer border-primary/30 focus:border-primary"
                         />
                       </FormControl>
                       <FormDescription>
@@ -438,6 +461,7 @@ export default function CreateCoursePage() {
                             onCheckedChange={(checked) =>
                               field.onChange(checked ? "published" : "draft")
                             }
+                            className="publish-toggle cursor-pointer"
                           />
                         </FormControl>
                       </div>

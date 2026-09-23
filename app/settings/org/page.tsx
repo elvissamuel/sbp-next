@@ -299,6 +299,9 @@ export default function OrganizationSettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="logo">Organization Logo URL</Label>
+                <p className="text-sm text-muted-foreground">
+                  This logo appears in the left sidebar. Until you upload one, that space stays blank.
+                </p>
                 <Input
                   id="logo"
                   name="logo"
