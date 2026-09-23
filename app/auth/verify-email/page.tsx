@@ -38,7 +38,7 @@ export default function VerifyEmailPage() {
               {loading ? "Sending..." : "Resend Verification Email"}
             </Button>
 
-            <Link href="/signin" className="block text-center text-sm text-primary hover:underline">
+            <Link href="/auth/signin" className="block text-center text-sm text-primary hover:underline">
               Already verified? Sign In
             </Link>
           </div>
