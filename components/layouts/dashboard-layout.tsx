@@ -50,7 +50,7 @@ export function DashboardLayout({
   const [isMounted, setIsMounted] = useState(false)
   const [user, setUser] = useState<{ id: string; email: string; firstName: string | null; lastName: string | null; name: string | null } | null>(null)
   const [userRole, setUserRole] = useState<string>("member")
-  const [organizationLogo, setOrganizationLogo] = useState<string>("/Seplat-logo.jpg")
+  const [organizationLogo, setOrganizationLogo] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -76,7 +76,7 @@ export function DashboardLayout({
       const primaryOrg = getPrimaryOrganization()
       setUser(currentUser)
       setUserRole(primaryOrg?.role || "member")
-      setOrganizationLogo(primaryOrg?.logo || "/Seplat-logo.jpg")
+      setOrganizationLogo(primaryOrg?.logo?.trim() || null)
 
       if (primaryOrg) {
         applyOrganizationTheme({
@@ -100,7 +100,7 @@ export function DashboardLayout({
   useEffect(() => {
     const syncLogo = () => {
       const primaryOrg = getPrimaryOrganization()
-      setOrganizationLogo(primaryOrg?.logo || "/Seplat-logo.jpg")
+      setOrganizationLogo(primaryOrg?.logo?.trim() || null)
     }
 
     syncLogo()
@@ -163,16 +163,38 @@ export function DashboardLayout({
         className={`fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-secondary/20 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         <div className="p-6 border-b border-secondary/20">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src={organizationLogo}
-              alt="LearningHub Logo"
-              width={32}
-              height={32}
-              className="object-contain"
-            />
-            {/* <span className="font-semibold text-[#65B32E]">WokBook</span> */}
-          </Link>
+          {organizationLogo ? (
+            <Link href="/" className="flex items-center">
+              <Image
+                src={organizationLogo}
+                alt="Organization logo"
+                width={140}
+                height={40}
+                className="h-10 w-auto max-w-full object-contain object-left"
+              />
+            </Link>
+          ) : (
+            <div className="space-y-2">
+              <div
+                className="h-12 rounded-md border border-dashed border-border bg-muted/30"
+                aria-hidden
+              />
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                Your logo will appear here after you upload it in{" "}
+                {isMounted && isAdmin ? (
+                  <Link
+                    href="/settings/org"
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                ) : (
+                  "Settings"
+                )}.
+              </p>
+            </div>
+          )}
         </div>
 
         <nav className="p-4 space-y-2">

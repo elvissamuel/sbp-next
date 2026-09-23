@@ -78,7 +78,12 @@ async function main() {
 async function seedDefaultCourses(organizationId: string) {
   // Course 1: Professional Communication Skills
   const communicationCourse = await prisma.course.upsert({
-    where: { slug: "professional-communication-skills" },
+    where: {
+      organizationId_slug: {
+        organizationId,
+        slug: "professional-communication-skills",
+      },
+    },
     update: {
       title: "Professional Communication Skills",
       description: "Master the art of effective communication in professional settings. This course covers verbal and written communication, active listening, presentation skills, and cross-cultural communication.",
@@ -431,7 +436,12 @@ Remember: Active listening is a skill that requires practice. Start by implement
 
   // Course 2: Digital Literacy Fundamentals
   const digitalCourse = await prisma.course.upsert({
-    where: { slug: "digital-literacy-fundamentals" },
+    where: {
+      organizationId_slug: {
+        organizationId,
+        slug: "digital-literacy-fundamentals",
+      },
+    },
     update: {
       title: "Digital Literacy Fundamentals",
       description: "Develop essential digital skills for the modern workplace. This course covers computer basics, internet safety, productivity tools, data management, and cybersecurity fundamentals.",
