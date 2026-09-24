@@ -54,8 +54,11 @@ export async function POST(
     const sourceCourse = await prisma.course.findUnique({
       where: { id: sourceCourseId },
       include: {
-        lessons: {
+        modules: {
           orderBy: { order: "asc" },
+          include: {
+            lessons: { orderBy: { order: "asc" } },
+          },
         },
         quizzes: {
           include: {
@@ -126,18 +129,32 @@ export async function POST(
       },
     })
 
-    // Copy lessons
-    for (const lesson of sourceCourse.lessons) {
-      await prisma.lesson.create({
+    for (const sourceModule of sourceCourse.modules) {
+      const createdModule = await prisma.module.create({
         data: {
           courseId: newCourse.id,
-          title: lesson.title,
-          content: lesson.content,
-          videoUrl: lesson.videoUrl,
-          order: lesson.order,
-          duration: lesson.duration,
+          title: sourceModule.title,
+          description: sourceModule.description,
+          order: sourceModule.order,
         },
       })
+
+      for (const lesson of sourceModule.lessons) {
+        await prisma.lesson.create({
+          data: {
+            courseId: newCourse.id,
+            moduleId: createdModule.id,
+            title: lesson.title,
+            content: lesson.content,
+            slides: lesson.slides ?? undefined,
+            videoUrl: lesson.videoUrl,
+            reflectionQuestion: lesson.reflectionQuestion,
+            order: lesson.order,
+            duration: lesson.duration,
+            status: lesson.status,
+          },
+        })
+      }
     }
 
     // Copy quizzes with questions

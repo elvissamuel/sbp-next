@@ -7,6 +7,7 @@ export interface InviteEmailData {
   email: string
   organizationName: string
   inviteLink: string
+  existingAccount?: boolean
 }
 
 export interface VerificationEmailData {
@@ -75,14 +76,16 @@ export async function sendInviteEmail(data: InviteEmailData): Promise<void> {
                           You have been invited to join <strong style="color: #111827;">${data.organizationName}</strong> as a team member.
                         </p>
                         <p style="font-size: 16px; margin: 0 0 30px 0; color: #374151;">
-                          Click the button below to create your account and get started:
+                          ${data.existingAccount
+                            ? "Click the button below to sign in and choose your department and job title for this organization:"
+                            : "Click the button below to create your account and get started:"}
                         </p>
                         <table role="presentation" style="width: 100%; margin: 30px 0;">
                           <tr>
                             <td align="center" style="padding: 0;">
                               <a href="${data.inviteLink}" 
                                  style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 16px;">
-                                Accept Invitation & Sign Up
+                                ${data.existingAccount ? "Accept Invitation" : "Accept Invitation & Sign Up"}
                               </a>
                             </td>
                           </tr>
@@ -117,7 +120,9 @@ Hello,
 
 You have been invited to join ${data.organizationName} as a team member.
 
-Click the link below to create your account and get started:
+${data.existingAccount
+  ? "Click the link below to sign in and choose your department and job title for this organization:"
+  : "Click the link below to create your account and get started:"}
 
 ${data.inviteLink}
 

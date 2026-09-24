@@ -5,10 +5,10 @@ import type React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { Bell, ChevronDown, LogOut, Menu, Settings, User, X } from "lucide-react"
+import { Bell, Building2, Check, ChevronDown, LogOut, Menu, Settings, User, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { clearSession, getPrimaryOrganization, getCurrentUser } from "@/lib/session"
+import { clearSession, getPrimaryOrganization, getCurrentUser, getUserOrganizations, setActiveOrganization } from "@/lib/session"
 import { getOrganizationSettings } from "@/lib/api-calls"
 import { applyOrganizationTheme } from "@/lib/theme"
 import { toast } from "sonner"
@@ -50,6 +50,8 @@ export function DashboardLayout({
   const [isMounted, setIsMounted] = useState(false)
   const [user, setUser] = useState<{ id: string; email: string; firstName: string | null; lastName: string | null; name: string | null } | null>(null)
   const [userRole, setUserRole] = useState<string>("member")
+  const [organizations, setOrganizations] = useState<ReturnType<typeof getUserOrganizations>>([])
+  const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null)
   const [organizationLogo, setOrganizationLogo] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
@@ -76,6 +78,8 @@ export function DashboardLayout({
       const primaryOrg = getPrimaryOrganization()
       setUser(currentUser)
       setUserRole(primaryOrg?.role || "member")
+      setOrganizations(getUserOrganizations().filter((org) => org.slug !== "system-default-courses"))
+      setActiveOrganizationId(primaryOrg?.id || null)
       setOrganizationLogo(primaryOrg?.logo?.trim() || null)
 
       if (primaryOrg) {
@@ -129,6 +133,15 @@ export function DashboardLayout({
 
   // Calculate user initials
   const userInitials = getUserInitials(user?.firstName, user?.lastName, displayEmail, user?.name)
+
+  const handleSwitchOrganization = (organizationId: string) => {
+    if (organizationId === activeOrganizationId) return
+    setActiveOrganization(organizationId)
+    setSidebarOpen(false)
+    router.push("/dashboard")
+  }
+
+  const activeOrganization = organizations.find((org) => org.id === activeOrganizationId) || organizations[0]
 
   const handleLogout = () => {
     clearSession()
@@ -259,6 +272,32 @@ export function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-2">
+              {activeOrganization && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 max-w-[180px] px-2 rounded-sm hover:bg-primary/10">
+                      <Building2 size={14} className="text-primary shrink-0" />
+                      <span className="ml-2 text-sm text-primary truncate">{activeOrganization.name}</span>
+                      {organizations.length > 1 && <ChevronDown size={14} className="ml-1 text-primary shrink-0" />}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  {organizations.length > 1 && (
+                    <DropdownMenuContent align="end" className="w-64 bg-white border border-primary/20">
+                      {organizations.map((organization) => (
+                        <DropdownMenuItem
+                          key={organization.id}
+                          className="cursor-pointer focus:bg-primary/10 focus:text-primary"
+                          onClick={() => handleSwitchOrganization(organization.id)}
+                        >
+                          <span className="flex-1 truncate">{organization.name}</span>
+                          {organization.id === activeOrganization.id && <Check size={14} className="text-primary" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  )}
+                </DropdownMenu>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -307,7 +346,7 @@ export function DashboardLayout({
         </header>
 
         <main className="flex-1 overflow-auto bg-white">
-          <div className="px-4 sm:px-6 lg:px-8 py-8">{children}</div>
+          <div key={activeOrganizationId || "none"} className="px-4 sm:px-6 lg:px-8 py-8">{children}</div>
         </main>
       </div>
     </div>

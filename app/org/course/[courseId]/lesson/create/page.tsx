@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Upload, Video } from "lucide-react"
-import { createLesson, getCourseResources, generateLessonContent, uploadVideo, type CourseResource, type Slide } from "@/lib/api-calls"
+import { createLesson, getOrganizationResources, generateLessonContent, uploadVideo, type CourseResource, type Slide } from "@/lib/api-calls"
+import { getPrimaryOrganization } from "@/lib/session"
 import { extractTextFromPdfFile } from "@/lib/pdf-client"
 import { CreateLessonSchema } from "@/lib/validation-schema"
 import { toast } from "sonner"
@@ -28,6 +29,9 @@ export default function CreateLessonPage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params.courseId as string
+  const searchParams = useSearchParams()
+  const moduleId = searchParams.get("moduleId") || undefined
+  const organizationId = getPrimaryOrganization()?.id || ""
 
   const [contentMode, setContentMode] = useState<"manual" | "ai" | "upload">("manual")
   const [isGenerating, setIsGenerating] = useState(false)
@@ -39,9 +43,9 @@ export default function CreateLessonPage() {
 
   // Fetch course resources for selection
   const { data: resourcesResponse, isLoading: resourcesLoading } = useQuery({
-    queryKey: ["course-resources", courseId],
-    queryFn: () => getCourseResources(courseId),
-    enabled: !!courseId,
+    queryKey: ["organization-resources", organizationId],
+    queryFn: () => getOrganizationResources(organizationId),
+    enabled: !!organizationId,
   })
 
   const resources = resourcesResponse?.data || []
@@ -50,6 +54,7 @@ export default function CreateLessonPage() {
     resolver: zodResolver(CreateLessonSchema),
     defaultValues: {
       courseId,
+      moduleId,
       title: "",
       content: "",
       videoUrl: "",
@@ -311,6 +316,7 @@ export default function CreateLessonPage() {
     const submitData = {
       ...values,
       courseId,
+      moduleId,
       resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
       // Use slides from form values if they exist, otherwise use content
       ...(values.slides && values.slides.slides && values.slides.slides.length > 0
@@ -360,7 +366,7 @@ export default function CreateLessonPage() {
               <div className="space-y-2">
                 <Label>Reference Resources (Optional)</Label>
                 <p className="text-sm text-muted-foreground">
-                  Select resources that AI can reference when generating content
+                  Select library resources that AI can reference when generating this lesson
                 </p>
                 {resourcesLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -369,7 +375,7 @@ export default function CreateLessonPage() {
                   </div>
                 ) : resources.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No resources available. <Link href={`/org/course/resource/upload`} className="text-primary hover:underline">Upload resources</Link> first.
+                    No library resources yet. <Link href="/org/course/resource" className="text-primary hover:underline">Update Library</Link> first.
                   </p>
                 ) : (
                   <div className="space-y-2 border rounded-md p-4 max-h-48 overflow-y-auto">

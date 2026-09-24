@@ -32,6 +32,7 @@ model Organization {
   groups    Group[]
   departments Department[]
   levels    Level[]
+  resources CourseResource[]
 
   @@index([slug])
 }
@@ -82,6 +83,7 @@ model OrganizationMember {
   userId          String
   user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role            String   @default("member") // superadmin, admin, instructor, member
+  status          String   @default("active") // pending until an existing user accepts, then active
   adminPermissions Json?   // Permissions for admin role (only used when role === "admin")
   departmentId   String?  // Department assignment
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
@@ -159,6 +161,7 @@ model Course {
   updatedAt       DateTime @updatedAt
 
   // Relations
+  modules         Module[]
   lessons         Lesson[]
   quizzes         Quiz[]
   enrollments     Enrollment[]
@@ -169,11 +172,28 @@ model Course {
   @@index([slug])
 }
 
+// Modules group lessons inside a course
+model Module {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lessons     Lesson[]
+
+  @@index([courseId])
+}
+
 // Lessons
 model Lesson {
   id          String   @id @default(cuid())
   courseId    String
   course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId    String
+  module      Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   title       String
   content     String   @db.Text  // Keep for backward compatibility (text-only lessons)
   slides      Json?    // Slide-based lessons with rich text, images, and videos
@@ -187,8 +207,10 @@ model Lesson {
 
   // Relations
   resources   LessonResource[]
+  completions LessonCompletion[]
 
   @@index([courseId])
+  @@index([moduleId])
 }
 
 // Lesson Resources (PDFs, docs, etc)
@@ -204,17 +226,20 @@ model LessonResource {
   @@index([lessonId])
 }
 
-// Course Resources
+// Organization library resources used as references when generating lessons
 model CourseResource {
-  id        String   @id @default(cuid())
-  courseId  String
-  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title     String
-  type      String   // pdf, document, text
-  url       String?  // Optional - only for file uploads
-  content   String?  @db.Text // Optional - for text/pasted content
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  courseId       String?
+  course         Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  title          String
+  type           String   // pdf, document, text
+  url            String?  // Optional - only for file uploads
+  content        String?  @db.Text // Optional - for text/pasted content
+  createdAt      DateTime @default(now())
 
+  @@index([organizationId])
   @@index([courseId])
 }
 
@@ -234,6 +259,21 @@ model Enrollment {
   @@unique([userId, courseId])
   @@index([userId])
   @@index([courseId])
+
+  completions LessonCompletion[]
+}
+
+model LessonCompletion {
+  id           String     @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lessonId     String
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt  DateTime   @default(now())
+
+  @@unique([enrollmentId, lessonId])
+  @@index([enrollmentId])
+  @@index([lessonId])
 }
 
 // Quizzes

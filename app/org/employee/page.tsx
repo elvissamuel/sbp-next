@@ -9,7 +9,7 @@ import { useState, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Mail, Trash2, Loader2, UserPlus, Upload, FileText, Edit2 } from "lucide-react"
+import { MoreHorizontal, Mail, Trash2, Loader2, UserPlus, Upload, Download, FileText, Edit2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -37,6 +37,7 @@ import ReactSelect from "react-select"
 import type { StylesConfig, MultiValue } from "react-select"
 import {
   inviteMember,
+  resendMemberInvite,
   getOrganizationMembers,
   getCourses,
   enrollStudent,
@@ -52,6 +53,10 @@ import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getUserFullName } from "@/lib/utils/user"
 import { useRouter } from "next/navigation"
 
+type InviteRole = "admin" | "member" | "instructor"
+
+const INVITE_ROLES: InviteRole[] = ["admin", "member", "instructor"]
+
 export default function EmployeePage() {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -59,12 +64,16 @@ export default function EmployeePage() {
   const [openEnroll, setOpenEnroll] = useState(false)
   const [selectedMember, setSelectedMember] = useState<OrganizationMember | null>(null)
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
-  const [inviteData, setInviteData] = useState({ emails: "", role: "member" as "admin" | "member" | "instructor" })
+  const [inviteData, setInviteData] = useState({ emails: "", role: "member" as InviteRole })
+  const [csvRoles, setCsvRoles] = useState<Record<string, InviteRole>>({})
   const [error, setError] = useState<string | null>(null)
   const [enrollError, setEnrollError] = useState<string | null>(null)
   const [inviteResults, setInviteResults] = useState<Array<{ email: string; status: "success" | "error"; message: string }>>([])
   const [isParsingCsv, setIsParsingCsv] = useState(false)
   const [csvFileName, setCsvFileName] = useState<string | null>(null)
+  const [resendingMemberId, setResendingMemberId] = useState<string | null>(null)
+  const [memberToResend, setMemberToResend] = useState<OrganizationMember | null>(null)
+  const [openResendDialog, setOpenResendDialog] = useState(false)
   const [memberToDelete, setMemberToDelete] = useState<OrganizationMember | null>(null)
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [memberToEdit, setMemberToEdit] = useState<OrganizationMember | null>(null)
@@ -203,8 +212,23 @@ export default function EmployeePage() {
     return emailRegex.test(email)
   }
 
-  // Parse CSV file and extract emails
-  const parseCsvFile = async (file: File): Promise<string[]> => {
+  const parseCsvLine = (line: string): string[] =>
+    line.split(",").map((value) => value.trim().replace(/^"|"$/g, ""))
+
+  const downloadInviteTemplate = () => {
+    const rows = ["email,role", "alex@company.com,member", "jordan@company.com,instructor"]
+    if (canAssignAdmin) rows.push("sam@company.com,admin")
+    const blob = new Blob([`${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "employee-invite-template.csv"
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Parse CSV file and extract emails with optional roles
+  const parseCsvFile = async (file: File): Promise<Array<{ email: string; role: InviteRole | null }>> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
 
@@ -216,7 +240,6 @@ export default function EmployeePage() {
             return
           }
 
-          // Split by newlines
           const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
 
           if (lines.length === 0) {
@@ -224,43 +247,53 @@ export default function EmployeePage() {
             return
           }
 
-          const emails: string[] = []
-
-          // Check if first line is a header (contains "email" or "Email")
-          const firstLine = lines[0].toLowerCase()
-          const hasHeader = firstLine.includes("email")
-
-          // Start from line 1 if header exists, otherwise from line 0
+          const headers = parseCsvLine(lines[0]).map((value) => value.toLowerCase())
+          const emailHeaderIndex = headers.findIndex((header) => header.includes("email"))
+          const roleHeaderIndex = headers.findIndex((header) => header === "role")
+          const hasHeader = emailHeaderIndex >= 0
+          const emailIndex = hasHeader ? emailHeaderIndex : 0
+          const roleIndex = hasHeader ? roleHeaderIndex : 1
           const startIndex = hasHeader ? 1 : 0
+          const invites: Array<{ email: string; role: InviteRole | null }> = []
+          const seen = new Set<string>()
+          const invalidRoles: string[] = []
+          const allowedRoles = canAssignAdmin ? "member, instructor, or admin" : "member or instructor"
 
           for (let i = startIndex; i < lines.length; i++) {
-            const line = lines[i].trim()
-            if (!line) continue
+            const values = parseCsvLine(lines[i])
+            const email = values[emailIndex] || values.find((value) => isValidEmail(value)) || ""
+            if (!isValidEmail(email) || seen.has(email.toLowerCase())) continue
+            seen.add(email.toLowerCase())
 
-            // Parse CSV line (handle quoted values and commas)
-            const values = line.split(",").map((val) => val.trim().replace(/^"|"$/g, ""))
-
-            // Try to find email in the line
-            // First, check if any value is an email
-            for (const value of values) {
-              if (isValidEmail(value)) {
-                emails.push(value)
-                break // Only take first email per line
-              }
+            const rawRole = roleIndex >= 0 ? (values[roleIndex] || "").trim().toLowerCase() : ""
+            if (!rawRole) {
+              invites.push({ email, role: null })
+              continue
             }
 
-            // If no email found in values, try the whole line as email
-            if (values.length === 1 && isValidEmail(values[0])) {
-              emails.push(values[0])
+            if (!INVITE_ROLES.includes(rawRole as InviteRole) || (rawRole === "admin" && !canAssignAdmin)) {
+              invalidRoles.push(`${email} (${values[roleIndex]?.trim() || rawRole})`)
+              continue
             }
+
+            invites.push({ email, role: rawRole as InviteRole })
           }
 
-          if (emails.length === 0) {
+          if (invalidRoles.length > 0) {
+            reject(
+              new Error(
+                `Invalid role for ${invalidRoles.join(", ")}. Use ${allowedRoles}.`
+              )
+            )
+            return
+          }
+
+          if (invites.length === 0) {
             reject(new Error("No valid email addresses found in CSV file"))
             return
           }
 
-          resolve(emails)
+          resolve(invites)
         } catch (error: any) {
           reject(new Error(`Failed to parse CSV: ${error?.message || "Unknown error"}`))
         }
@@ -308,18 +341,23 @@ export default function EmployeePage() {
     setCsvFileName(file.name)
 
     try {
-      const emails = await parseCsvFile(file)
+      const invites = await parseCsvFile(file)
 
-      if (emails.length === 0) {
+      if (invites.length === 0) {
         throw new Error("No valid email addresses found in CSV file")
       }
 
-      // Remove duplicates
-      const uniqueEmails = [...new Set(emails)]
+      setCsvRoles((prev) => {
+        const next = { ...prev }
+        for (const invite of invites) {
+          if (invite.role) next[invite.email.toLowerCase()] = invite.role
+        }
+        return next
+      })
 
-      // Add emails to the textarea (append if there are existing emails)
       const existingEmails = parseEmails(inviteData.emails)
-      const allEmails = [...new Set([...existingEmails, ...uniqueEmails])]
+      const allEmails = [...new Set([...existingEmails, ...invites.map((invite) => invite.email)])]
+      const roleCount = invites.filter((invite) => invite.role).length
 
       setInviteData((prev) => ({
         ...prev,
@@ -327,7 +365,10 @@ export default function EmployeePage() {
       }))
 
       toast.success("CSV file processed successfully", {
-        description: `Found ${uniqueEmails.length} unique email${uniqueEmails.length !== 1 ? "s" : ""} in the file.`,
+        description:
+          roleCount > 0
+            ? `Found ${invites.length} people. ${roleCount} will use the role from the file.`
+            : `Found ${invites.length} unique email${invites.length !== 1 ? "s" : ""} in the file.`,
       })
     } catch (error: any) {
       console.error("Error parsing CSV:", error)
@@ -356,42 +397,43 @@ export default function EmployeePage() {
 
   // Invite multiple members
   const inviteMembersMutation = useMutation({
-    mutationFn: async (emails: string[]) => {
+    mutationFn: async (invites: Array<{ email: string; role: InviteRole }>) => {
       const currentUser = getCurrentUser()
       const results = await Promise.allSettled(
-        emails.map((email) =>
+        invites.map((invite) =>
           inviteMember({
             organizationId,
-            email,
-            role: inviteData.role.toLowerCase() as "admin" | "member" | "instructor",
+            email: invite.email,
+            role: invite.role,
             requesterUserId: currentUser?.id,
           })
         )
       )
 
       return results.map((result, index) => {
+        const email = invites[index].email
         if (result.status === "fulfilled") {
           const response = result.value
           if (response.data) {
-            return { email: emails[index], status: "success" as const, message: "Invitation sent successfully" }
+            return { email, status: "success" as const, message: "Invitation sent successfully" }
           } else if (response.error) {
             const errorMsg =
               typeof response.error === "string"
                 ? response.error
                 : response.error?.message || "Failed to invite member"
-            return { email: emails[index], status: "error" as const, message: errorMsg }
+            return { email, status: "error" as const, message: errorMsg }
           } else if (response.validationErrors) {
             const firstError = response.validationErrors[0]
             return {
-              email: emails[index],
+              email,
               status: "error" as const,
               message: firstError?.message || "Validation error",
             }
           }
-          return { email: emails[index], status: "error" as const, message: "Unknown error" }
+          return { email, status: "error" as const, message: "Unknown error" }
         } else {
           return {
-            email: emails[index],
+            email,
             status: "error" as const,
             message: result.reason?.message || "Failed to invite member",
           }
@@ -416,6 +458,7 @@ export default function EmployeePage() {
         // Reset form and close dialog after a short delay
         setTimeout(() => {
           setInviteData({ emails: "", role: "member" })
+          setCsvRoles({})
           setOpenInvite(false)
           setError(null)
           setInviteResults([])
@@ -475,9 +518,12 @@ export default function EmployeePage() {
 
     // Remove duplicates
     const uniqueEmails = [...new Set(emails)]
+    const invites = uniqueEmails.map((email) => ({
+      email,
+      role: csvRoles[email.toLowerCase()] || inviteData.role,
+    }))
 
-    // Send invitations
-    inviteMembersMutation.mutate(uniqueEmails)
+    inviteMembersMutation.mutate(invites)
   }
 
   // Enroll student mutation
@@ -701,6 +747,44 @@ export default function EmployeePage() {
     },
   })
 
+  const handleResendClick = (employee: OrganizationMember) => {
+    setMemberToResend(employee)
+    setOpenResendDialog(true)
+  }
+
+  const handleConfirmResend = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    if (!memberToResend || !organizationId || resendingMemberId) return
+
+    setResendingMemberId(memberToResend.id)
+    try {
+      const currentUser = getCurrentUser()
+      const response = await resendMemberInvite({
+        organizationId,
+        memberId: memberToResend.id,
+        requesterUserId: currentUser?.id,
+      })
+
+      if (response.data) {
+        toast.success("Invitation resent", {
+          description: `Invitation sent to ${memberToResend.email}`,
+        })
+      } else {
+        toast.error("Could not resend invitation", {
+          description: response.error?.message || "Failed to resend invitation",
+        })
+      }
+    } catch (resendError) {
+      console.error("Error resending invitation:", resendError)
+      toast.error("Could not resend invitation", {
+        description: "Failed to resend invitation. Please try again.",
+      })
+    } finally {
+      setResendingMemberId(null)
+      setOpenResendDialog(false)
+    }
+  }
+
   const handleOpenEdit = (member: OrganizationMember) => {
     setMemberToEdit(member)
     setEditData({
@@ -759,6 +843,7 @@ export default function EmployeePage() {
               if (!open) {
                 // Reset form when dialog closes
                 setInviteData({ emails: "", role: "member" })
+                setCsvRoles({})
                 setError(null)
                 setInviteResults([])
                 setCsvFileName(null)
@@ -799,7 +884,15 @@ export default function EmployeePage() {
                     <Label htmlFor="emails" className="text-primary">
                       Email Addresses
                     </Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={downloadInviteTemplate}
+                        className="cursor-pointer text-sm text-primary hover:text-primary/80 flex items-center gap-1"
+                      >
+                        <Download size={14} />
+                        Download template
+                      </button>
                       <Label
                         htmlFor="csv-upload"
                         className="cursor-pointer text-sm text-primary hover:text-primary/80 flex items-center gap-1"
@@ -842,14 +935,14 @@ export default function EmployeePage() {
                     <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
                       <p className="text-xs font-medium text-primary mb-1">CSV File Format:</p>
                       <ul className="text-xs text-black space-y-1 list-disc list-inside">
-                        <li>CSV file should contain email addresses in a column (with or without header)</li>
-                        <li>If header exists, it should contain "email" or "Email"</li>
-                        <li>One email per row, or comma-separated values</li>
+                        <li>Download the template, then add one person per row</li>
+                        <li>Columns are email and role</li>
+                        <li>Roles: {canAssignAdmin ? "member, instructor, or admin" : "member or instructor"}</li>
+                        <li>Leave role blank to use the role selected below</li>
                         <li>Maximum file size: 5MB</li>
-                        <li>Supported formats: .csv, .txt</li>
                       </ul>
                       <p className="text-xs text-black mt-2 italic">
-                        Example: <code className="bg-white/50 px-1 rounded">email@example.com</code> or <code className="bg-white/50 px-1 rounded">Email,Name</code> (with header)
+                        Example: <code className="bg-white/50 px-1 rounded">alex@company.com,member</code>
                       </p>
                     </div>
                   </div>
@@ -878,6 +971,11 @@ export default function EmployeePage() {
                   {!canAssignAdmin && (
                     <p className="text-xs text-black">
                       Only superadmin can assign admin role
+                    </p>
+                  )}
+                  {Object.keys(csvRoles).length > 0 && (
+                    <p className="text-xs text-black">
+                      People with a role in the CSV keep that role. This selection is used for everyone else.
                     </p>
                   )}
                 </div>
@@ -1175,7 +1273,11 @@ export default function EmployeePage() {
                         <Badge variant="outline" className="uppercase border-primary/30">{employee.role}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="default" className="bg-primary text-white">Active</Badge>
+                        {employee.status === "pending" ? (
+                          <Badge variant="outline" className="border-amber-500 text-amber-700">Pending</Badge>
+                        ) : (
+                          <Badge variant="default" className="bg-primary text-white">Active</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -1206,6 +1308,13 @@ export default function EmployeePage() {
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              onClick={() => handleResendClick(employee)}
+                              className="hover:bg-primary/10 text-primary"
+                            >
+                              <Mail size={16} className="mr-2" />
+                              Resend invitation
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               className={`hover:bg-destructive/10 ${
                                 employee.role === "superadmin" ? "opacity-50 cursor-not-allowed" : "text-destructive"
                               }`}
@@ -1224,6 +1333,47 @@ export default function EmployeePage() {
             </Table>
           </CardContent>
         </Card>
+        <AlertDialog
+          open={openResendDialog}
+          onOpenChange={(open) => {
+            if (resendingMemberId) return
+            setOpenResendDialog(open)
+          }}
+        >
+          <AlertDialogContent className="bg-white border-primary/20">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-primary">Resend invitation?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Send the invitation email again to{" "}
+                <span className="font-semibold">
+                  {getUserFullName(
+                    memberToResend?.firstName,
+                    memberToResend?.lastName,
+                    memberToResend?.name
+                  ) || "this member"}
+                </span>
+                {memberToResend?.email ? ` (${memberToResend.email})` : ""}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={!!resendingMemberId}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-primary hover:bg-primary/90 text-white"
+                onClick={handleConfirmResend}
+                disabled={!!resendingMemberId}
+              >
+                {resendingMemberId ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Resending...
+                  </>
+                ) : (
+                  "Resend invitation"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <AlertDialog
           open={openDeleteDialog}
           onOpenChange={(open) => {

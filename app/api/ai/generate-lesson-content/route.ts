@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       const resources = await prisma.courseResource.findMany({
         where: {
           id: { in: resourceIds },
-          courseId: courseId,
+          organizationId: course.organizationId,
         },
         select: { content: true },
       })

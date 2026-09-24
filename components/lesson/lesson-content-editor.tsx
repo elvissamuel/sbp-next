@@ -19,6 +19,7 @@ interface LessonContentEditorProps {
   onContentChange?: (content: string) => void
   onSlidesChange?: (slides: Slide[]) => void
   disabled?: boolean
+  textOnly?: boolean
 }
 
 export function LessonContentEditor({
@@ -27,6 +28,7 @@ export function LessonContentEditor({
   onContentChange,
   onSlidesChange,
   disabled = false,
+  textOnly = false,
 }: LessonContentEditorProps) {
   const [lessonType, setLessonType] = useState<"text" | "slides">(
     ENABLE_SLIDES && slides && slides.length > 0 ? "slides" : "text"
@@ -40,7 +42,7 @@ export function LessonContentEditor({
     onSlidesChange?.(updatedSlides)
   }
 
-  if (!ENABLE_SLIDES) {
+  if (!ENABLE_SLIDES || textOnly) {
     return (
       <div className="space-y-2">
         <JoditLessonEditor

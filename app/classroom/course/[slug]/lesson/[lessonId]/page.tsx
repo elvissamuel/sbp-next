@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, Loader2 } from "lucide-react"
 import { getLesson, getCourseBySlug, type Lesson, type Quiz } from "@/lib/api-calls"
+import { buildCourseSequence } from "@/lib/course-sequence"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
 import { SlideViewer } from "@/components/lesson/slide-viewer"
@@ -94,41 +95,18 @@ export default function ClassroomLessonView() {
       .trim()
   }, [lesson?.content])
 
-  // Calculate which lessons are completed
-  const completedLessonsCount = stats.completedLessons
-  const isLessonCompleted = (index: number) => {
-    return index < completedLessonsCount
-  }
-
+  const completedIds = stats.completedLessonIds || []
   const isQuizCompleted = (quizId: string) => {
     const quiz = quizzes.find((q: Quiz) => q.id === quizId)
     return !!quiz?.attempts?.[0]?.passed
   }
 
-  // Combine lessons and quizzes, sorted by creation date chronologically
-  const allContent = [
-    ...lessons.map((lesson: Lesson, index: number) => ({
-      id: lesson.id,
-      type: "lesson" as const,
-      title: lesson.title,
-      order: lesson.order,
-      completed: isLessonCompleted(index),
-      duration: lesson.duration,
-      createdAt: lesson.createdAt,
-    })),
-    ...quizzes.map((quiz: Quiz) => ({
-      id: quiz.id,
-      type: "quiz" as const,
-      title: quiz.title,
-      completed: isQuizCompleted(quiz.id),
-      duration: null,
-      createdAt: quiz.createdAt,
-    })),
-  ].sort((a, b) => {
-    // Sort by creation date chronologically (oldest first)
-    const dateA = new Date(a.createdAt).getTime()
-    const dateB = new Date(b.createdAt).getTime()
-    return dateA - dateB
+  const { items: allContent } = buildCourseSequence({
+    modules: course?.modules,
+    lessons,
+    quizzes,
+    completedLessonIds: completedIds,
+    isQuizCompleted,
   })
 
   // Lock progression: users can only access items up to the first incomplete item

@@ -3,6 +3,17 @@ import { generateSlug } from "../lib/utils"
 
 const prisma = new PrismaClient()
 
+async function ensureModule(courseId: string) {
+  const existing = await prisma.module.findFirst({
+    where: { courseId },
+    orderBy: { order: "asc" },
+  })
+  if (existing) return existing
+  return prisma.module.create({
+    data: { courseId, title: "Module 1", order: 0 },
+  })
+}
+
 async function main() {
   // Upsert sample organization (creates if not exists, updates if exists)
   const org = await prisma.organization.upsert({
@@ -102,6 +113,7 @@ async function seedDefaultCourses(organizationId: string) {
   })
 
   console.log("Communication course created:", communicationCourse.id)
+  const communicationModule = await ensureModule(communicationCourse.id)
 
   // Course 1 Lessons - Delete existing lessons first, then create new ones
   await prisma.lesson.deleteMany({
@@ -111,6 +123,7 @@ async function seedDefaultCourses(organizationId: string) {
   const commLesson1 = await prisma.lesson.create({
     data: {
       courseId: communicationCourse.id,
+      moduleId: communicationModule.id,
       title: "Introduction to Professional Communication",
       content: `# Introduction to Professional Communication
 
@@ -165,6 +178,7 @@ Let's begin your journey to becoming a more effective professional communicator!
   const commLesson2 = await prisma.lesson.create({
     data: {
       courseId: communicationCourse.id,
+      moduleId: communicationModule.id,
       title: "Written Communication and Email Etiquette",
       content: `# Written Communication and Email Etiquette
 
@@ -243,6 +257,7 @@ Each format has its own conventions and best practices, but they all share the n
   const commLesson3 = await prisma.lesson.create({
     data: {
       courseId: communicationCourse.id,
+      moduleId: communicationModule.id,
       title: "Active Listening and Empathetic Communication",
       content: `# Active Listening and Empathetic Communication
 
@@ -460,6 +475,7 @@ Remember: Active listening is a skill that requires practice. Start by implement
   })
 
   console.log("Digital literacy course created:", digitalCourse.id)
+  const digitalModule = await ensureModule(digitalCourse.id)
 
   // Course 2 Lessons - Delete existing lessons first
   await prisma.lesson.deleteMany({
@@ -469,6 +485,7 @@ Remember: Active listening is a skill that requires practice. Start by implement
   const digitalLesson1 = await prisma.lesson.create({
     data: {
       courseId: digitalCourse.id,
+      moduleId: digitalModule.id,
       title: "Introduction to Digital Literacy",
       content: `# Introduction to Digital Literacy
 
@@ -563,6 +580,7 @@ Let's begin building your digital literacy skills!`,
   const digitalLesson2 = await prisma.lesson.create({
     data: {
       courseId: digitalCourse.id,
+      moduleId: digitalModule.id,
       title: "Internet Safety and Cybersecurity Basics",
       content: `# Internet Safety and Cybersecurity Basics
 
@@ -676,6 +694,7 @@ Remember: Cybersecurity is everyone's responsibility. By practicing good securit
   const digitalLesson3 = await prisma.lesson.create({
     data: {
       courseId: digitalCourse.id,
+      moduleId: digitalModule.id,
       title: "Productivity Tools and File Management",
       content: `# Productivity Tools and File Management
 

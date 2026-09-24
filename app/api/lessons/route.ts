@@ -21,20 +21,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { courseId, title, content, slides, videoUrl, reflectionQuestion, status, resourceIds } = validationResult.data
+    const { courseId, moduleId, title, content, slides, videoUrl, reflectionQuestion, status, resourceIds } = validationResult.data
 
-    // Verify course exists
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      include: { lessons: true },
     })
 
     if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
-    // Get the next order number
-    const nextOrder = course.lessons.length
+    let targetModule = null
+    if (moduleId) {
+      targetModule = await prisma.module.findFirst({ where: { id: moduleId, courseId } })
+      if (!targetModule) {
+        return NextResponse.json({ error: "Module not found" }, { status: 404 })
+      }
+    } else {
+      targetModule = await prisma.module.findFirst({ where: { courseId }, orderBy: { order: "asc" } })
+      if (!targetModule) {
+        targetModule = await prisma.module.create({
+          data: { courseId, title: "Module 1", order: 0 },
+        })
+      }
+    }
+
+    const lessonCount = await prisma.lesson.count({ where: { moduleId: targetModule.id } })
 
     // Prepare content for indexing (use content if available, otherwise extract from slides)
     let contentForIndexing = content || ""
@@ -58,13 +70,14 @@ export async function POST(request: NextRequest) {
     const lesson = await prisma.lesson.create({
       data: {
         courseId,
+        moduleId: targetModule.id,
         title,
         content: content || "", // Keep for backward compatibility
         slides: slides ? (slides as any) : null, // Store slides as JSON
         videoUrl: videoUrl || null,
         reflectionQuestion: reflectionQuestion || null,
         status: status || "draft",
-        order: nextOrder,
+        order: lessonCount,
       },
     })
 

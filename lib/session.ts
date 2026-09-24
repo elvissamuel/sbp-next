@@ -3,6 +3,9 @@
  * In production, this should use secure session management (cookies, JWT, etc.)
  */
 
+const ACTIVE_ORGANIZATION_KEY = "activeOrganizationId"
+const SYSTEM_ORG_SLUG = "system-default-courses"
+
 export interface UserSession {
   user: {
     id: string;
@@ -62,6 +65,7 @@ export function clearSession(): void {
 
   localStorage.removeItem("session");
   localStorage.removeItem("user"); // Also clear legacy user storage
+  localStorage.removeItem(ACTIVE_ORGANIZATION_KEY);
 }
 
 /**
@@ -104,14 +108,32 @@ export function getUserOrganizations(): UserSession["organizations"] {
   return session?.organizations || [];
 }
 
-/**
- * Get the primary organization (first organization or the one user is admin of)
- */
+function selectableOrganizations(): UserSession["organizations"] {
+  return getUserOrganizations().filter((org) => org.slug !== SYSTEM_ORG_SLUG);
+}
+
+export function getActiveOrganizationId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACTIVE_ORGANIZATION_KEY);
+}
+
+export function setActiveOrganization(organizationId: string): void {
+  if (typeof window === "undefined") return;
+
+  const organization = selectableOrganizations().find((org) => org.id === organizationId);
+  if (!organization) return;
+
+  localStorage.setItem(ACTIVE_ORGANIZATION_KEY, organizationId);
+  window.dispatchEvent(new Event("session-changed"));
+}
+
 export function getPrimaryOrganization(): UserSession["organizations"][0] | null {
-  const organizations = getUserOrganizations();
+  const organizations = selectableOrganizations();
   if (organizations.length === 0) return null;
 
-  // Prefer superadmin or admin organization, otherwise return the first one
+  const activeOrganization = organizations.find((org) => org.id === getActiveOrganizationId());
+  if (activeOrganization) return activeOrganization;
+
   const adminOrg = organizations.find((org) => org.role === "admin" || org.role === "superadmin");
   return adminOrg || organizations[0];
 }
@@ -156,6 +178,10 @@ export function removeOrganizationFromSession(organizationId: string): void {
   if (!session) return;
 
   const organizations = session.organizations.filter((org) => org.id !== organizationId);
+
+  if (getActiveOrganizationId() === organizationId) {
+    localStorage.removeItem(ACTIVE_ORGANIZATION_KEY);
+  }
 
   if (organizations.length === 0) {
     clearSession();

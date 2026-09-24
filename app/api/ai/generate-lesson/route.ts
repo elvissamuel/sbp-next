@@ -19,6 +19,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
+    let targetModule = await prisma.module.findFirst({
+      where: { courseId },
+      orderBy: { order: "asc" },
+    })
+    if (!targetModule) {
+      targetModule = await prisma.module.create({
+        data: { courseId, title: "Module 1", order: 0 },
+      })
+    }
+
     // Generate content, including course title for context
     const content = await generateLessonContent(topic, courseLevel, undefined, course.title)
 
@@ -26,9 +36,10 @@ export async function POST(request: NextRequest) {
     const lesson = await prisma.lesson.create({
       data: {
         courseId,
+        moduleId: targetModule.id,
         title: topic,
         content,
-        order: 0,
+        order: await prisma.lesson.count({ where: { moduleId: targetModule.id } }),
       },
     })
 

@@ -29,6 +29,11 @@ export async function GET(
             name: true, // Keep for backward compatibility
           },
         },
+        department: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: { joinedAt: "desc" },
     })
@@ -40,12 +45,14 @@ export async function GET(
       email: member.user.email,
       firstName: member.user.firstName,
       lastName: member.user.lastName,
-      jobTitle: member.user.jobTitle,
-      department: member.user.department,
+      jobTitle: member.jobTitle || member.user.jobTitle,
+      departmentId: member.departmentId,
+      department: member.department?.name || member.user.department,
       name: member.user.firstName && member.user.lastName 
         ? `${member.user.firstName} ${member.user.lastName}` 
         : member.user.name, // Keep for backward compatibility
       role: member.role,
+      status: member.status,
       adminPermissions: member.adminPermissions as {
         canManageCourses: boolean;
         canManageMembers: boolean;

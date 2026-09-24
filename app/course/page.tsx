@@ -10,10 +10,12 @@ import { Badge } from "@/components/ui/badge"
 import { BookOpen, PlayCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { getUserEnrollments, type EnrollmentWithCourse } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
+import { useActiveOrganization } from "@/hooks/use-active-organization"
 
 export default function CourseListPage() {
   const currentUser = getCurrentUser()
   const userId = currentUser?.id || ""
+  const { activeOrganization, isReady: isOrganizationReady } = useActiveOrganization()
 
   // Fetch user enrollments
   const { data: enrollmentsResponse, isLoading } = useQuery({
@@ -22,7 +24,10 @@ export default function CourseListPage() {
     enabled: !!userId,
   })
 
-  const enrollments = enrollmentsResponse?.data || []
+  const enrollments = (enrollmentsResponse?.data || []).filter(
+    (enrollment: EnrollmentWithCourse) =>
+      !activeOrganization?.id || enrollment.course.organizationId === activeOrganization.id
+  )
 
   // Transform enrollments to the format expected by the UI
   const enrolledCourses = enrollments.map((enrollment: EnrollmentWithCourse) => {
@@ -57,7 +62,7 @@ export default function CourseListPage() {
           <p className="text-muted-foreground">View and continue your enrolled courses</p>
         </div>
 
-        {isLoading ? (
+        {isLoading || !isOrganizationReady ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             <span className="ml-2 text-sm text-muted-foreground">Loading your courses...</span>
