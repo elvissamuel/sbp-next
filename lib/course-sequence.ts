@@ -19,7 +19,7 @@ export function buildCourseSequence(input: {
   isQuizCompleted: (quizId: string) => boolean
 }) {
   const completed = new Set(input.completedLessonIds || [])
-  const modules = input.modules?.length
+  const modules = input.modules
     ? input.modules.map((module) => ({
         id: module.id,
         title: module.title,

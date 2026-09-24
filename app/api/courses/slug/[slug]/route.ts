@@ -105,20 +105,16 @@ export async function GET(
       })
     }
 
-    // Filter out drafted lessons/quizzes for enrolled users
-    // Admins viewing their own courses should see all content
-    const isEnrolled = !!enrollment
-    const visibleLesson = (lesson: { status: string | null }) => !isEnrolled || lesson.status === "published"
+    // Learner view only includes published lessons and quizzes, for every role.
+    const visibleLesson = (lesson: { status: string | null }) => lesson.status === "published"
     const filteredLessons = course.lessons.filter((lesson) => visibleLesson(lesson))
     const filteredModules = course.modules
       .map((module) => ({
         ...module,
         lessons: module.lessons.filter((lesson) => visibleLesson(lesson)),
       }))
-      .filter((module) => !isEnrolled || module.lessons.length > 0)
-    const filteredQuizzes = isEnrolled
-      ? course.quizzes.filter((quiz) => quiz.status === "published")
-      : course.quizzes
+      .filter((module) => module.lessons.length > 0)
+    const filteredQuizzes = course.quizzes.filter((quiz) => quiz.status === "published")
 
     let completedLessonIds: string[] = []
     if (enrollment) {

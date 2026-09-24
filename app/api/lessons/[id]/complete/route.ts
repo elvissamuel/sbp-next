@@ -39,6 +39,13 @@ export async function POST(
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
     }
 
+    if (lesson.status !== "published") {
+      return NextResponse.json(
+        { error: "This lesson is still a draft and is not available." },
+        { status: 403 }
+      )
+    }
+
     const courseDeadline = (lesson.course as any)?.deadline as Date | null | undefined
     if (courseDeadline && new Date(courseDeadline).getTime() < Date.now()) {
       return NextResponse.json(
