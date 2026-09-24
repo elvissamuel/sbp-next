@@ -35,7 +35,7 @@ const allNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", adminOnly: false, exactMatch: true },
   { label: "Courses", href: "/org/course", adminOnly: false, memberHref: "/course", exactMatch: false },
   { label: "Employees", href: "/org/employee", adminOnly: true, exactMatch: false },
-  { label: "Groups", href: "/org/groups", adminOnly: true, exactMatch: false },
+  // { label: "Groups", href: "/org/groups", adminOnly: true, exactMatch: false },
   { label: "Departments", href: "/org/departments", adminOnly: true, exactMatch: false },
   // { label: "Levels", href: "/org/levels", adminOnly: true, exactMatch: false },
   { label: "Permissions", href: "/org/permissions", adminOnly: true, exactMatch: false },

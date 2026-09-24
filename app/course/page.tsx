@@ -26,7 +26,8 @@ export default function CourseListPage() {
 
   const enrollments = (enrollmentsResponse?.data || []).filter(
     (enrollment: EnrollmentWithCourse) =>
-      !activeOrganization?.id || enrollment.course.organizationId === activeOrganization.id
+      enrollment.course.status !== "draft" &&
+      (!activeOrganization?.id || enrollment.course.organizationId === activeOrganization.id)
   )
 
   // Transform enrollments to the format expected by the UI

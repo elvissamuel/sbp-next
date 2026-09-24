@@ -27,6 +27,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
     }
 
+    // Learner views pass userId. Draft lessons stay on the admin editor, which does not.
+    if (userId && lesson.status !== "published") {
+      return NextResponse.json(
+        { error: "This lesson is still a draft and is not available." },
+        { status: 403 }
+      )
+    }
+
     // Enforce course deadline for learners
     // We only enforce when userId is provided by the classroom.
     const courseDeadline = (lesson.course as any)?.deadline as Date | null | undefined

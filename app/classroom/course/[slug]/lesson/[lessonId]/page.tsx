@@ -221,12 +221,17 @@ export default function ClassroomLessonView() {
     )
   }
 
-  if (!lesson) {
+  const lessonError = lessonResponse?.error as { message?: string } | undefined
+  const lessonIsDraft = !!lesson && lesson.status !== "published"
+  if (!lesson || lessonIsDraft) {
+    const unavailable = lessonIsDraft || lessonError?.message?.toLowerCase().includes("draft")
     return (
       <DashboardLayout>
         <Card className="border-[#DE1915]/20 bg-white">
           <CardContent className="pt-6">
-            <p className="text-[#DE1915]">Lesson not found.</p>
+            <p className="text-[#DE1915]">
+              {unavailable ? "This lesson is not available yet." : "Lesson not found."}
+            </p>
             <Button variant="outline" asChild className="mt-4 border-accent/30 text-accent hover:bg-accent/10">
               <Link href={`/classroom/course/${slug}`}>Back to Course</Link>
             </Button>
