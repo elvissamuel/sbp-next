@@ -17,7 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import SelectComponent from "react-select"
 import { Loader2 } from "lucide-react"
-import { createQuiz, getCourseResources, getCourse, type CourseResource, type Lesson } from "@/lib/api-calls"
+import { createQuiz, getOrganizationResources, getCourse, type CourseResource, type Lesson } from "@/lib/api-calls"
+import { getPrimaryOrganization } from "@/lib/session"
 import { CreateQuizSchema } from "@/lib/validation-schema"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -28,6 +29,7 @@ export default function CreateQuizPage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params.courseId as string
+  const organizationId = getPrimaryOrganization()?.id || ""
 
   // Fetch course with lessons for selection
   const { data: courseResponse, isLoading: courseLoading } = useQuery({
@@ -38,9 +40,9 @@ export default function CreateQuizPage() {
 
   // Fetch course resources for selection
   const { data: resourcesResponse, isLoading: resourcesLoading } = useQuery({
-    queryKey: ["course-resources", courseId],
-    queryFn: () => getCourseResources(courseId),
-    enabled: !!courseId,
+    queryKey: ["organization-resources", organizationId],
+    queryFn: () => getOrganizationResources(organizationId),
+    enabled: !!organizationId,
   })
 
   const course = courseResponse?.data
@@ -293,7 +295,7 @@ export default function CreateQuizPage() {
                   </div>
                 ) : resources.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No resources available. <Link href={`/org/course/resource/upload`} className="text-primary hover:underline">Upload resources</Link> first.
+                    No library resources yet. <Link href="/org/course/resource" className="text-primary hover:underline">Update Library</Link> first.
                   </p>
                 ) : (
                   <div className="space-y-2 border rounded-md p-4 max-h-48 overflow-y-auto">

@@ -21,7 +21,8 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react"
-import { getQuiz, getCourseBySlug, submitQuiz, type Lesson, type Quiz, type QuizQuestion } from "@/lib/api-calls"
+import { getQuiz, getCourseBySlug, submitQuiz, type Quiz, type QuizQuestion } from "@/lib/api-calls"
+import { buildCourseSequence } from "@/lib/course-sequence"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -187,42 +188,19 @@ export default function ClassroomQuizView() {
     }
   }, [showResults, totalQuestions, isSoundEnabled])
 
-  // Calculate which lessons are completed
-  const completedLessonsCount = stats.completedLessons
-  const isLessonCompleted = (index: number) => {
-    return index < completedLessonsCount
-  }
-
-  const isQuizCompleted = (quizId: string) => {
-    const q = quizzes.find((qz: Quiz) => qz.id === quizId)
+  const completedIds = stats.completedLessonIds || []
+  const isQuizCompleted = (id: string) => {
+    const q = quizzes.find((qz: Quiz) => qz.id === id)
     const attemptsCount = q?.attempts?.length || 0
     return !!q?.attempts?.[0]?.passed || attemptsCount >= 2
   }
 
-  // Combine lessons and quizzes, sorted by creation date chronologically
-  const allContent = [
-    ...lessons.map((lesson: Lesson, index: number) => ({
-      id: lesson.id,
-      type: "lesson" as const,
-      title: lesson.title,
-      order: lesson.order,
-      completed: isLessonCompleted(index),
-      duration: lesson.duration,
-      createdAt: lesson.createdAt,
-    })),
-    ...quizzes.map((quiz: Quiz) => ({
-      id: quiz.id,
-      type: "quiz" as const,
-      title: quiz.title,
-      completed: isQuizCompleted(quiz.id),
-      duration: null,
-      createdAt: quiz.createdAt,
-    })),
-  ].sort((a, b) => {
-    // Sort by creation date chronologically (oldest first)
-    const dateA = new Date(a.createdAt).getTime()
-    const dateB = new Date(b.createdAt).getTime()
-    return dateA - dateB
+  const { items: allContent } = buildCourseSequence({
+    modules: course?.modules,
+    lessons,
+    quizzes,
+    completedLessonIds: completedIds,
+    isQuizCompleted,
   })
 
   // Find current item index in sorted array

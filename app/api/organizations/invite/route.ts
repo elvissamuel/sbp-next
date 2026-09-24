@@ -3,10 +3,8 @@ import { InviteMemberSchema } from "@/lib/validation-schema"
 import { sendInviteEmail } from "@/lib/email"
 import { isSuperAdmin } from "@/lib/permissions"
 import { type NextRequest, NextResponse } from "next/server"
-import { ZodError } from "zod"
 import { Prisma } from "@prisma/client"
-
-const SYSTEM_ORG_SLUG = "system-default-courses"
+import { ZodError } from "zod"
 
 // Invite a member to an organization
 export async function POST(request: NextRequest) {
@@ -95,94 +93,71 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
     const signupLink = `${baseUrl}/auth/signup?email=${encodeURIComponent(email)}&invite=true&orgId=${organizationId}&role=${role}`
 
-    // If user exists, add them immediately unless they already belong to an organization
+    // Existing users can belong to more than one organization.
     if (user) {
-      const memberships = await prisma.organizationMember.findMany({
-        where: { userId: user.id },
-        select: {
-          organizationId: true,
-          organization: { select: { slug: true } },
+      const existingMember = await prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId,
+            userId: user.id,
+          },
         },
       })
 
-      const organizationMemberships = memberships.filter(
-        (membership) => membership.organization.slug !== SYSTEM_ORG_SLUG
-      )
-
-      if (organizationMemberships.some((membership) => membership.organizationId === organizationId)) {
+      if (existingMember && existingMember.status !== "pending") {
         return NextResponse.json(
           { error: "User is already a member of this organization" },
           { status: 400 }
         )
       }
 
-      if (organizationMemberships.length > 0) {
-        return NextResponse.json(
-          { error: "This email already belongs to another organization and cannot be invited." },
-          { status: 409 }
-        )
+      const invitedRole = role.toLowerCase()
+      const adminPermissions = invitedRole === "admin"
+        ? {
+            canManageCourses: false,
+            canManageMembers: false,
+            canManageSettings: false,
+            canManageDepartments: false,
+            canManageLevels: false,
+            canViewAnalytics: false,
+            canManageGroups: false,
+          }
+        : undefined
+
+      if (existingMember) {
+        await prisma.organizationMember.update({
+          where: { id: existingMember.id },
+          data: {
+            role: invitedRole,
+            adminPermissions: adminPermissions ?? Prisma.DbNull,
+          },
+        })
+      } else {
+        await prisma.organizationMember.create({
+          data: {
+            organizationId,
+            userId: user.id,
+            role: invitedRole,
+            status: "pending",
+            ...(adminPermissions ? { adminPermissions } : {}),
+          },
+        })
       }
 
-      // Add user to organization
-      // Set default permissions for admin role (all false - superadmin must grant permissions)
-      const member = await prisma.organizationMember.create({
-        data: {
-          organizationId,
-          userId: user.id,
-          role: role.toLowerCase(), // Ensure lowercase to match schema (admin, member, instructor)
-          ...(role.toLowerCase() === "admin" && {
-            adminPermissions: {
-              canManageCourses: false,
-              canManageMembers: false,
-              canManageSettings: false,
-              canManageDepartments: false,
-              canManageLevels: false,
-              canViewAnalytics: false,
-              canManageGroups: false,
-            },
-          }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              name: true,
-            },
-          },
-          organization: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      })
+      const acceptLink = `${baseUrl}/auth/accept-invite?email=${encodeURIComponent(email)}&orgId=${organizationId}&role=${invitedRole}`
 
-      // Send notification email to existing user
       await sendInviteEmail({
         email,
         organizationName: organization.name,
-        inviteLink: `${baseUrl}/org/courses`, // Link to courses page for existing users
+        inviteLink: acceptLink,
+        existingAccount: true,
       })
 
       return NextResponse.json(
         {
-          message: "Member added successfully",
-          member: {
-            id: member.id,
-            email: member.user.email,
-            firstName: member.user.firstName,
-            lastName: member.user.lastName,
-            name: member.user.firstName && member.user.lastName 
-              ? `${member.user.firstName} ${member.user.lastName}` 
-              : member.user.name,
-            role: member.role,
-            organizationId: member.organizationId,
-            organizationName: member.organization.name,
-          },
+          message: "Invitation email sent successfully",
+          email,
+          organizationName: organization.name,
         },
         { status: 201 }
       )

@@ -10,25 +10,43 @@ import "server-only"
  * @param buffer - PDF file as a Buffer
  * @returns Extracted text content as a string
  */
+type PdfParser = {
+  getText: (params?: { pageJoiner?: string }) => Promise<{ text: string }>
+  destroy: () => Promise<void>
+}
+
+type PdfParseModule = {
+  PDFParse?: new (options: { data: Uint8Array }) => PdfParser
+  default?: ((buffer: Buffer) => Promise<{ text: string }>) | PdfParseModule
+}
+
 export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
   try {
-    // pdf-parse v1.1.1 exports a default function (not a class)
-    // Use require() directly in Node.js runtime
-    const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>
-    
-    // Verify it's a function
-    if (typeof pdfParse !== "function") {
-      throw new Error(
-        `pdf-parse module did not export a function. Got: ${typeof pdfParse}. ` +
-        `Please ensure you're using pdf-parse version 1.1.1 which exports a default function.`
-      )
+    const pdfParseModule = require("pdf-parse") as PdfParseModule | ((buffer: Buffer) => Promise<{ text: string }>)
+    let text = ""
+
+    if (typeof pdfParseModule === "function") {
+      const pdfData = await pdfParseModule(buffer)
+      text = pdfData.text
+    } else {
+      const PDFParse = pdfParseModule.PDFParse
+      const legacyParse = typeof pdfParseModule.default === "function" ? pdfParseModule.default : undefined
+
+      if (typeof PDFParse === "function") {
+        const parser = new PDFParse({ data: new Uint8Array(buffer) })
+        try {
+          const pdfData = await parser.getText({ pageJoiner: "\n\n" })
+          text = pdfData.text
+        } finally {
+          await parser.destroy()
+        }
+      } else if (legacyParse) {
+        const pdfData = await legacyParse(buffer)
+        text = pdfData.text
+      } else {
+        throw new Error("pdf-parse did not export a PDF parser")
+      }
     }
-
-    // Parse the PDF buffer
-    const pdfData = await pdfParse(buffer)
-
-    // Extract text from the PDF
-    const text = pdfData.text
 
     if (!text || text.trim().length === 0) {
       throw new Error("PDF appears to be empty or contains no extractable text")

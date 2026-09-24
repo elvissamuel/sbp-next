@@ -137,11 +137,68 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  export type CourseOutline = {
+    title: string;
+    description: string;
+    modules: Array<{
+      title: string;
+      description?: string;
+      lessons: Array<{ title: string; content: string }>;
+    }>;
+  };
+
+  export const previewCourseOutline = async (input: {
+    mode: "document" | "topic";
+    text?: string;
+    topic?: string;
+    file?: File;
+  }): Promise<IApiResponse<CourseOutline>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    if (input.file) {
+      const form = new FormData();
+      form.set("mode", input.mode);
+      form.set("file", input.file);
+      if (input.text) form.set("text", input.text);
+      if (input.topic) form.set("topic", input.topic);
+      return handleApiCalls(await fetch(`${baseUrl}/api/courses/outline`, {
+        method: "POST",
+        body: form,
+      }));
+    }
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/outline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: input.mode, text: input.text, topic: input.topic }),
+    }));
+  };
+
+  export const saveCourseOutline = async (
+    input: CourseOutline & { organizationId: string },
+  ): Promise<IApiResponse<Course>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/from-outline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }));
+  };
+
   // Course with relations as returned by the API
   export type CourseWithRelations = Course & {
     enrollments?: Array<{ id: string }>;
     lessons?: unknown[];
+    modules?: CourseModule[];
     quizzes?: Array<{ id: string; title: string; questions?: unknown[] }>;
+    _count?: { modules?: number };
+  };
+
+  export type CourseModule = {
+    id: string;
+    courseId: string;
+    title: string;
+    description?: string | null;
+    order: number;
+    lessons?: Lesson[];
   };
 
   export const getCourses = async (organizationId: string, published?: boolean): Promise<IApiResponse<CourseWithRelations[]>> => {
@@ -183,6 +240,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
   export type Lesson = {
     id: string;
     courseId: string;
+    moduleId?: string;
     title: string;
     content: string; // Keep for backward compatibility (text-only lessons)
     slides?: SlidesData | null; // Slide-based lessons
@@ -197,7 +255,8 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
 
   export type CourseResource = {
     id: string;
-    courseId: string;
+    organizationId: string;
+    courseId?: string | null;
     title: string;
     type: string;
     content?: string | null;
@@ -214,10 +273,47 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  export const getCourseResources = async (courseId: string): Promise<IApiResponse<CourseResource[]>> => {
+  export const createModule = async (courseId: string, data: { title: string; description?: string }): Promise<IApiResponse<CourseModule>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    return handleApiCalls(await fetch(`${baseUrl}/api/resources?courseId=${courseId}`, {
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/${courseId}/modules`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+  };
+
+  export const deleteModule = async (moduleId: string): Promise<IApiResponse<{ success: boolean }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/modules/${moduleId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const getOrganizationResources = async (organizationId: string): Promise<IApiResponse<CourseResource[]>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/resources?organizationId=${organizationId}`, {
       method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
+  };
+
+  export const updateOrganizationResource = async (resourceId: string, data: {
+    title: string;
+    content: string;
+  }): Promise<IApiResponse<CourseResource>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/resources/${resourceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+  };
+
+  export const deleteOrganizationResource = async (resourceId: string): Promise<IApiResponse<{ success: boolean }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/resources/${resourceId}`, {
+      method: "DELETE",
       headers: { "Content-Type": "application/json" },
     }));
   };
@@ -378,6 +474,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
 
   export type CourseWithStats = CourseWithRelations & {
     lessons: Lesson[];
+    modules: CourseModule[];
     quizzes: Quiz[];
     enrollments: EnrollmentWithUser[];
     stats: {
@@ -397,6 +494,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
 
   export type CourseBySlug = Course & {
     lessons: Lesson[];
+    modules: CourseModule[];
     quizzes: Quiz[];
     enrollment: {
       id: string;
@@ -407,6 +505,7 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     stats: {
       totalLessons: number;
       completedLessons: number;
+      completedLessonIds?: string[];
       progress: number;
     };
   };
@@ -516,9 +615,50 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     );
   };
 
+  export const resendMemberInvite = async (input: {
+    organizationId: string;
+    memberId: string;
+    requesterUserId?: string;
+  }): Promise<IApiResponse<{ message: string; email: string }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/invite/resend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }));
+  };
+
   export const inviteMember = async (input: z.infer<typeof InviteMemberSchema>): Promise<IApiResponse<{ message: string; member: any }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/organizations/invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }));
+  };
+
+  export type AcceptedOrganization = {
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    themePrimaryColor: string | null;
+    themeSecondaryColor: string | null;
+    themeAccentColor: string | null;
+    role: string;
+    joinedAt: string;
+  };
+
+  export const acceptOrganizationInvite = async (input: {
+    organizationId: string;
+    email: string;
+    userId: string;
+    role: "admin" | "member" | "instructor";
+    departmentId?: string;
+    jobTitle: string;
+  }): Promise<IApiResponse<{ message: string; organization: AcceptedOrganization }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/invite/accept`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
@@ -532,9 +672,11 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     firstName: string | null;
     lastName: string | null;
     jobTitle: string | null;
+    departmentId?: string | null;
     department: string | null;
     name: string | null; // Computed from firstName + lastName, kept for backward compatibility
     role: string;
+    status?: string;
     adminPermissions: {
       canManageCourses: boolean;
       canManageMembers: boolean;
@@ -707,6 +849,18 @@ export const deleteGroup = async (groupId: string): Promise<IApiResponse<{ succe
   export const enrollGroupToCourse = async (groupId: string, courseId: string): Promise<IApiResponse<GroupEnrollmentResponse>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/groups/${groupId}/enroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseId }),
+    }));
+  };
+
+  export const enrollDepartmentToCourse = async (
+    departmentId: string,
+    courseId: string
+  ): Promise<IApiResponse<GroupEnrollmentResponse & { departmentName: string }>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/departments/${departmentId}/enroll`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ courseId }),

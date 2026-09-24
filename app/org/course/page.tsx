@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Plus, Edit2, Eye, Trash2, Loader2, UserPlus, Download, FileText, HelpCircle } from "lucide-react"
-import { getCourses, getOrganizationMembers, enrollStudent, getDefaultCourses, copyCourse, type CourseWithRelations, type OrganizationMember } from "@/lib/api-calls"
+import { MoreHorizontal, Plus, Edit2, Eye, Trash2, Loader2, UserPlus, Download, FileText, HelpCircle, Building2 } from "lucide-react"
+import { getCourses, getOrganizationMembers, getDepartments, enrollStudent, enrollDepartmentToCourse, deleteCourse, getDefaultCourses, copyCourse, type CourseWithRelations, type OrganizationMember, type Department } from "@/lib/api-calls"
 import { getPrimaryOrganization } from "@/lib/session"
 import { format } from "date-fns"
 import {
@@ -27,6 +27,16 @@ import type { StylesConfig, MultiValue } from "react-select"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { getUserFullName } from "@/lib/utils/user"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function CourseManagementPage() {
   const router = useRouter()
@@ -38,9 +48,13 @@ export default function CourseManagementPage() {
   const [openEnroll, setOpenEnroll] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<CourseWithRelations | null>(null)
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([])
   const [enrollError, setEnrollError] = useState<string | null>(null)
+  const [isEnrolling, setIsEnrolling] = useState(false)
   const [openPreview, setOpenPreview] = useState(false)
   const [previewCourse, setPreviewCourse] = useState<CourseWithRelations | null>(null)
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
+  const [courseToDelete, setCourseToDelete] = useState<CourseWithRelations | null>(null)
 
   // Fetch courses for the organization
   const { data: coursesResponse, isLoading, error, refetch } = useQuery({
@@ -66,6 +80,12 @@ export default function CourseManagementPage() {
     enabled: !!organizationId && openEnroll,
   })
 
+  const { data: departmentsResponse, isLoading: departmentsLoading } = useQuery({
+    queryKey: ["departments", organizationId],
+    queryFn: () => getDepartments(organizationId),
+    enabled: !!organizationId && openEnroll,
+  })
+
   // Fetch default courses
   const { data: defaultCoursesResponse, isLoading: isLoadingDefaultCourses } = useQuery({
     queryKey: ["default-courses"],
@@ -74,6 +94,7 @@ export default function CourseManagementPage() {
 
   const courses = coursesResponse?.data || []
   const members = membersResponse?.data || []
+  const departments = departmentsResponse?.data || []
   const defaultCourses = defaultCoursesResponse?.data || []
 
   const { data: subscriptionCheck } = useQuery({
@@ -102,8 +123,19 @@ export default function CourseManagementPage() {
     return memberOptions.filter((option) => selectedMembers.includes(option.value))
   }, [memberOptions, selectedMembers])
 
+  const departmentOptions = useMemo(() => {
+    return departments.map((department: Department) => ({
+      value: department.id,
+      label: department.name,
+    }))
+  }, [departments])
+
+  const selectedDepartmentOptions = useMemo(() => {
+    return departmentOptions.filter((option) => selectedDepartments.includes(option.value))
+  }, [departmentOptions, selectedDepartments])
+
   // Custom styles for react-select to match app theme
-  type OptionType = { value: string; label: string; member: OrganizationMember }
+  type OptionType = { value: string; label: string }
   const selectStyles: StylesConfig<OptionType, true> = useMemo(() => ({
     control: (base: any, state: any) => ({
       ...base,
@@ -224,8 +256,17 @@ export default function CourseManagementPage() {
   const handleOpenEnroll = (course: CourseWithRelations) => {
     setSelectedCourse(course)
     setSelectedMembers([])
+    setSelectedDepartments([])
     setEnrollError(null)
     setOpenEnroll(true)
+  }
+
+  const resetEnrollDialog = () => {
+    setOpenEnroll(false)
+    setSelectedCourse(null)
+    setSelectedMembers([])
+    setSelectedDepartments([])
+    setEnrollError(null)
   }
 
   const handleEnroll = async (e: React.FormEvent) => {
@@ -241,8 +282,8 @@ export default function CourseManagementPage() {
       return
     }
 
-    if (selectedMembers.length === 0) {
-      const errorMsg = "Please select at least one student"
+    if (selectedMembers.length === 0 && selectedDepartments.length === 0) {
+      const errorMsg = "Select at least one student or department"
       setEnrollError(errorMsg)
       toast.error("Validation error", {
         description: errorMsg,
@@ -251,9 +292,41 @@ export default function CourseManagementPage() {
     }
 
     try {
-      // Enroll all selected members
-      const enrollments = await Promise.allSettled(
-        selectedMembers.map((userId) =>
+      setIsEnrolling(true)
+      const departmentResults = await Promise.all(
+        selectedDepartments.map(async (departmentId) => {
+          const response = await enrollDepartmentToCourse(departmentId, selectedCourse.id)
+          const departmentName = departments.find((department) => department.id === departmentId)?.name || "Department"
+          return { departmentName, response }
+        })
+      )
+
+      const departmentFailures = departmentResults.filter((result) => result.response.error || !result.response.data)
+      const enrolledFromDepartments = departmentResults.reduce(
+        (total, result) => total + (result.response.data?.enrolled || 0),
+        0
+      )
+      const alreadyEnrolledFromDepartments = departmentResults.reduce(
+        (total, result) => total + (result.response.data?.alreadyEnrolled || 0),
+        0
+      )
+
+      const enrolledDepartmentUserIds = new Set(
+        members
+          .filter((member) =>
+            selectedDepartments.some((departmentId) => {
+              const department = departments.find((item) => item.id === departmentId)
+              if (!department) return false
+              if (member.departmentId) return member.departmentId === department.id
+              return member.department?.trim().toLowerCase() === department.name.trim().toLowerCase()
+            })
+          )
+          .map((member) => member.userId)
+      )
+
+      const individualUserIds = selectedMembers.filter((userId) => !enrolledDepartmentUserIds.has(userId))
+      const individualResults = await Promise.all(
+        individualUserIds.map((userId) =>
           enrollStudentMutation.mutateAsync({
             userId,
             courseId: selectedCourse.id,
@@ -261,63 +334,86 @@ export default function CourseManagementPage() {
         )
       )
 
-      // Check for any failures
-      const failures = enrollments.filter(
+      const alreadyEnrolledIndividuals = individualResults.filter((result) =>
+        result.error?.message?.toLowerCase().includes("already enrolled")
+      ).length
+      const individualFailures = individualResults.filter(
         (result) =>
-          result.status === "rejected" ||
-          (result.status === "fulfilled" && (result.value.error || result.value.validationErrors || !result.value.data))
+          (result.error || result.validationErrors || !result.data) &&
+          !result.error?.message?.toLowerCase().includes("already enrolled")
       )
-      const successful = enrollments.filter(
-        (result) =>
-          result.status === "fulfilled" && result.value.data && !result.value.error && !result.value.validationErrors
-      )
+      const enrolledIndividuals = individualResults.filter((result) => result.data && !result.error).length
 
-      if (failures.length > 0 && successful.length === 0) {
-        const errorMessages = failures
-          .map((f) => {
-            if (f.status === "rejected") return f.reason?.message || "Unknown error"
-            return f.value.error?.message || f.value.validationErrors?.[0]?.message || "Failed to enroll"
-          })
-          .join(", ")
-        setEnrollError(`Failed to enroll: ${errorMessages}`)
-        toast.error("Enrollment failed", {
-          description: errorMessages,
-        })
-      } else if (failures.length > 0) {
-        const message = `Successfully enrolled ${successful.length} student(s). ${failures.length} enrollment(s) failed.`
-        setEnrollError(message)
-        toast.success("Partially enrolled", {
-          description: message,
-        })
-        // Invalidate courses query to refresh student count
-        queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
-        // Close dialog after a short delay if some succeeded
-        setTimeout(() => {
-          setOpenEnroll(false)
-          setSelectedCourse(null)
-          setSelectedMembers([])
-        }, 2000)
-      } else {
-        // All successful
-        toast.success("Enrollment successful", {
-          description: `Successfully enrolled ${successful.length} student(s) to ${selectedCourse?.title || "the course"}.`,
-        })
-        queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
-        setOpenEnroll(false)
-        setSelectedCourse(null)
-        setSelectedMembers([])
+      const enrolled = enrolledFromDepartments + enrolledIndividuals
+      const alreadyEnrolled = alreadyEnrolledFromDepartments + alreadyEnrolledIndividuals
+      const failureMessages = [
+        ...departmentFailures.map(
+          (result) => result.response.error?.message || `Failed to enroll ${result.departmentName}`
+        ),
+        ...individualFailures.map((result) => result.error?.message || result.validationErrors?.[0]?.message || "Failed to enroll"),
+      ]
+
+      queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
+
+      if (enrolled === 0 && failureMessages.length > 0) {
+        const errorMsg = failureMessages.join(", ")
+        setEnrollError(errorMsg)
+        toast.error("Enrollment failed", { description: errorMsg })
+        return
       }
+
+      if (enrolled === 0 && alreadyEnrolled > 0) {
+        toast.success("Already enrolled", {
+          description: `Everyone selected is already enrolled in ${selectedCourse.title}.`,
+        })
+        resetEnrollDialog()
+        return
+      }
+
+      const description = [
+        `Enrolled ${enrolled} ${enrolled === 1 ? "person" : "people"} in ${selectedCourse.title}.`,
+        alreadyEnrolled > 0 ? `${alreadyEnrolled} ${alreadyEnrolled === 1 ? "was" : "were"} already enrolled.` : "",
+        failureMessages.length > 0 ? failureMessages.join(", ") : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+
+      toast.success(failureMessages.length > 0 ? "Partially enrolled" : "Enrollment successful", {
+        description,
+      })
+      resetEnrollDialog()
     } catch (error: any) {
       console.error("Error enrolling students:", error)
-      const errorMessage = typeof error?.message === 'string' 
-        ? error.message 
-        : "Failed to enroll students. Please try again."
+      const errorMessage = typeof error?.message === "string" ? error.message : "Failed to enroll. Please try again."
       setEnrollError(errorMessage)
-      toast.error("Failed to enroll students", {
+      toast.error("Failed to enroll", {
         description: errorMessage,
       })
+    } finally {
+      setIsEnrolling(false)
     }
   }
+
+  const deleteCourseMutation = useMutation({
+    mutationFn: (courseId: string) => deleteCourse(courseId),
+    onSuccess: (response) => {
+      if (response.error || !response.data) {
+        const message = response.error?.message || "Failed to delete course"
+        toast.error("Failed to delete course", { description: message })
+        return
+      }
+      toast.success("Course deleted", {
+        description: `"${courseToDelete?.title || "Course"}" has been deleted.`,
+      })
+      queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
+      setOpenDeleteDialog(false)
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to delete course", {
+        description: error.message || "Please try again.",
+      })
+    },
+  })
 
   return (
     <DashboardLayout>
@@ -330,9 +426,9 @@ export default function CourseManagementPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild className="border-primary/30 text-primary hover:bg-primary/10">
-              <Link href="/org/course/resource/upload">
+              <Link href="/org/course/resource">
                 <Plus size={16} className="mr-2" />
-                Upload Resource
+                Update Library
               </Link>
             </Button>
             {freeCourseLimitReached ? (
@@ -351,12 +447,17 @@ export default function CourseManagementPage() {
                 Create Course (limit reached)
               </Button>
             ) : (
-              <Button asChild className="bg-primary hover:bg-primary/90 text-white">
-                <Link href="/org/course/create">
-                  <Plus size={16} className="mr-2" />
-                  Create Course
-                </Link>
-              </Button>
+              <>
+                <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+                  <Link href="/org/course/create">
+                    <Plus size={16} className="mr-2" />
+                    Create Course
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/org/course/outline">Build from outline</Link>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -443,6 +544,7 @@ export default function CourseManagementPage() {
               <TableHeader>
                 <TableRow className="border-primary/20 hover:bg-transparent">
                   <TableHead className="text-primary">Title</TableHead>
+                  <TableHead className="text-primary">Modules</TableHead>
                   <TableHead className="text-primary">Students</TableHead>
                   <TableHead className="text-primary">Status</TableHead>
                   <TableHead className="text-primary">Created</TableHead>
@@ -452,7 +554,7 @@ export default function CourseManagementPage() {
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       <p className="text-sm text-black mt-2">Loading courses...</p>
                     </TableCell>
@@ -460,14 +562,14 @@ export default function CourseManagementPage() {
                 )}
                 {error && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-destructive">
+                    <TableCell colSpan={6} className="text-center py-8 text-destructive">
                       {coursesResponse?.error?.message || "Failed to load courses. Please try again."}
                     </TableCell>
                   </TableRow>
                 )}
                 {!isLoading && !error && courses.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-black">
+                    <TableCell colSpan={6} className="text-center py-8 text-black">
                       No courses found. Create your first course to get started.
                     </TableCell>
                   </TableRow>
@@ -479,6 +581,7 @@ export default function CourseManagementPage() {
                     onClick={() => router.push(`/org/course/${course.id}`)}
                   >
                     <TableCell className="font-medium text-primary">{course.title}</TableCell>
+                    <TableCell>{course._count?.modules ?? course.modules?.length ?? 0}</TableCell>
                     <TableCell>{course.enrollments?.length || 0}</TableCell>
                     <TableCell>
                       <Badge variant={course.status === "published" ? "default" : "secondary"} className={course.status === "published" ? "bg-primary text-white" : ""}>
@@ -512,7 +615,13 @@ export default function CourseManagementPage() {
                               Edit
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive hover:bg-destructive/10">
+                          <DropdownMenuItem
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              setCourseToDelete(course)
+                              setOpenDeleteDialog(true)
+                            }}
+                          >
                             <Trash2 size={16} className="mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -664,38 +773,66 @@ export default function CourseManagementPage() {
         <Dialog open={openEnroll} onOpenChange={setOpenEnroll}>
           <DialogContent className="bg-white border-primary/20">
             <DialogHeader>
-              <DialogTitle className="text-primary">Enroll Students in Course</DialogTitle>
+              <DialogTitle className="text-primary">Enroll in Course</DialogTitle>
               <DialogDescription>
-                Select students to enroll in <strong>{selectedCourse?.title}</strong>
+                Enroll students or a whole department in <strong>{selectedCourse?.title}</strong>
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleEnroll} className="space-y-4">
-              {membersLoading ? (
+              {membersLoading || departmentsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <span className="ml-2 text-sm text-black">Loading members...</span>
-                </div>
-              ) : members.length === 0 ? (
-                <div className="p-4 bg-muted rounded-md">
-                  <p className="text-sm text-black">
-                    No members available. Invite members to your organization first.
-                  </p>
+                  <span className="ml-2 text-sm text-black">Loading...</span>
                 </div>
               ) : (
-                <ReactSelect
-                  isMulti
-                  options={memberOptions}
-                  value={selectedMemberOptions}
-                  onChange={(newValue: MultiValue<{ value: string; label: string; member: OrganizationMember }>) => {
-                    setSelectedMembers(newValue ? newValue.map((option: { value: string; label: string; member: OrganizationMember }) => option.value) : [])
-                  }}
-                  styles={selectStyles}
-                  placeholder="Select students..."
-                  isClearable
-                  isSearchable
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                />
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-primary">Students</Label>
+                    {members.length === 0 ? (
+                      <p className="text-sm text-black">No members available. Invite members to your organization first.</p>
+                    ) : (
+                      <ReactSelect
+                        isMulti
+                        options={memberOptions}
+                        value={selectedMemberOptions}
+                        onChange={(newValue: MultiValue<{ value: string; label: string }>) => {
+                          setSelectedMembers(newValue ? newValue.map((option) => option.value) : [])
+                        }}
+                        styles={selectStyles}
+                        placeholder="Select students..."
+                        isClearable
+                        isSearchable
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-primary flex items-center gap-2">
+                      <Building2 size={14} />
+                      Departments
+                    </Label>
+                    {departments.length === 0 ? (
+                      <p className="text-sm text-black">No departments yet.</p>
+                    ) : (
+                      <ReactSelect
+                        isMulti
+                        options={departmentOptions}
+                        value={selectedDepartmentOptions}
+                        onChange={(newValue: MultiValue<{ value: string; label: string }>) => {
+                          setSelectedDepartments(newValue ? newValue.map((option) => option.value) : [])
+                        }}
+                        styles={selectStyles}
+                        placeholder="Select departments..."
+                        isClearable
+                        isSearchable
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                      />
+                    )}
+                    <p className="text-xs text-black">Everyone in a selected department will be enrolled.</p>
+                  </div>
+                </>
               )}
 
               {enrollError && (
@@ -708,27 +845,27 @@ export default function CourseManagementPage() {
                 <Button
                   type="submit"
                   className="flex-1 bg-primary hover:bg-primary/90 text-white"
-                  disabled={enrollStudentMutation.isPending || selectedMembers.length === 0 || membersLoading}
+                  disabled={
+                    isEnrolling ||
+                    (selectedMembers.length === 0 && selectedDepartments.length === 0) ||
+                    membersLoading ||
+                    departmentsLoading
+                  }
                 >
-                  {enrollStudentMutation.isPending ? (
+                  {isEnrolling ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Enrolling...
                     </>
                   ) : (
-                    `Enroll ${selectedMembers.length} Student${selectedMembers.length !== 1 ? "s" : ""}`
+                    "Enroll"
                   )}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setOpenEnroll(false)
-                    setSelectedCourse(null)
-                    setSelectedMembers([])
-                    setEnrollError(null)
-                  }}
-                  disabled={enrollStudentMutation.isPending}
+                  onClick={resetEnrollDialog}
+                  disabled={isEnrolling}
                   className="border-primary/30 text-primary hover:bg-primary/10"
                 >
                   Cancel
@@ -737,6 +874,43 @@ export default function CourseManagementPage() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog
+          open={openDeleteDialog}
+          onOpenChange={(open) => {
+            if (!deleteCourseMutation.isPending) setOpenDeleteDialog(open)
+          }}
+        >
+          <AlertDialogContent className="bg-white border-destructive/20">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive">Delete course?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete <span className="font-semibold">{courseToDelete?.title || "this course"}</span>? This removes the
+                course and its lessons, quizzes, and enrollments. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteCourseMutation.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                disabled={deleteCourseMutation.isPending || !courseToDelete}
+                onClick={(event) => {
+                  event.preventDefault()
+                  if (courseToDelete) deleteCourseMutation.mutate(courseToDelete.id)
+                }}
+              >
+                {deleteCourseMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   )

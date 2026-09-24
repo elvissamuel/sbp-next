@@ -12,38 +12,51 @@ export const runtime = "nodejs"
  * Helper function to extract text from uploaded files
  * Converts File objects to Buffer for server-side processing
  */
-async function extractTextFromFile(file: File): Promise<string> {
-  const fileType = file.type
+function fileKind(file: File): "pdf" | "text" | "unsupported" {
+  const name = file.name.toLowerCase()
+  const type = file.type.toLowerCase()
 
-  if (fileType === "application/pdf") {
-    // Convert File to Buffer for pdf-parse
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    
-    // Use server-only PDF extraction helper
-    return await extractTextFromPdfBuffer(buffer)
-  } else if (
-    fileType === "text/plain" ||
-    fileType === "text/markdown" ||
-    fileType.includes("text/")
+  if (type === "application/pdf" || name.endsWith(".pdf")) return "pdf"
+  if (
+    type.startsWith("text/") ||
+    name.endsWith(".txt") ||
+    name.endsWith(".md") ||
+    name.endsWith(".markdown")
   ) {
-    return await file.text()
-  } else {
-    throw new Error(`Unsupported file type: ${fileType}. Supported types: PDF, TXT, Markdown`)
+    return "text"
   }
+  return "unsupported"
 }
 
-// Get all resources for a course
+async function extractTextFromFile(file: File): Promise<string> {
+  const kind = fileKind(file)
+
+  if (kind === "pdf") {
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    return await extractTextFromPdfBuffer(buffer)
+  }
+
+  if (kind === "text") {
+    return await file.text()
+  }
+
+  throw new Error(
+    `Unsupported file type${file.type ? `: ${file.type}` : ""}. Supported types: PDF, TXT, Markdown`
+  )
+}
+
+// Get library resources for an organization
 export async function GET(request: NextRequest) {
   try {
-    const courseId = request.nextUrl.searchParams.get("courseId")
+    const organizationId = request.nextUrl.searchParams.get("organizationId")
 
-    if (!courseId) {
-      return NextResponse.json({ error: "Course ID is required" }, { status: 400 })
+    if (!organizationId) {
+      return NextResponse.json({ error: "Organization ID is required" }, { status: 400 })
     }
 
     const resources = await prisma.courseResource.findMany({
-      where: { courseId },
+      where: { organizationId },
       orderBy: { createdAt: "desc" },
     })
 
@@ -60,14 +73,14 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
 
     const title = formData.get("title") as string
-    const courseId = formData.get("courseId") as string
+    const organizationId = formData.get("organizationId") as string
     const inputType = formData.get("inputType") as "file" | "text"
     const content = formData.get("content") as string | null
     const file = formData.get("file") as File | null
 
     // Validate basic fields
     const validationResult = CreateResourceSchema.safeParse({
-      courseId,
+      organizationId,
       title,
       inputType,
       content: inputType === "text" ? content : undefined,
@@ -82,14 +95,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    // Verify course exists and get organizationId
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { id: true, organizationId: true },
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
     })
 
-    if (!course) {
-      return NextResponse.json({ error: "Course not found" }, { status: 404 })
+    if (!organization) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 })
     }
 
     let resourceContent = ""
@@ -98,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Handle file upload
     if (inputType === "file" && file) {
-      resourceType = file.type === "application/pdf" ? "pdf" : "document"
+      resourceType = fileKind(file) === "pdf" ? "pdf" : "document"
       
       // Extract text content from file
       resourceContent = await extractTextFromFile(file)
@@ -129,7 +141,7 @@ export async function POST(request: NextRequest) {
     // Create resource in database
     const resource = await prisma.courseResource.create({
       data: {
-        courseId,
+        organizationId,
         title,
         type: resourceType,
         url: resourceUrl,
@@ -141,8 +153,7 @@ export async function POST(request: NextRequest) {
     try {
       await indexResourceContent(resource.id, resourceContent, {
         resourceId: resource.id,
-        courseId: course.id,
-        organizationId: course.organizationId,
+        organizationId,
         title: resource.title,
         type: resource.type,
       })

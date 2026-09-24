@@ -41,7 +41,10 @@ export async function POST(request: NextRequest) {
 
     // Get user's organizations
     const organizationMembers = await prisma.organizationMember.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        status: "active",
+      },
       include: {
         organization: {
           select: {
@@ -49,6 +52,9 @@ export async function POST(request: NextRequest) {
             name: true,
             slug: true,
             logo: true,
+            themePrimaryColor: true,
+            themeSecondaryColor: true,
+            themeAccentColor: true,
           },
         },
       },
@@ -60,6 +66,9 @@ export async function POST(request: NextRequest) {
       name: member.organization.name,
       slug: member.organization.slug,
       logo: member.organization.logo,
+      themePrimaryColor: member.organization.themePrimaryColor,
+      themeSecondaryColor: member.organization.themeSecondaryColor,
+      themeAccentColor: member.organization.themeAccentColor,
       role: member.role,
       joinedAt: member.joinedAt,
     }))

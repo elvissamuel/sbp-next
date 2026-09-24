@@ -9,12 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, Loader2 } from "lucide-react"
 import { getUserEnrollments, type EnrollmentWithCourse } from "@/lib/api-calls"
 import { getCurrentUser } from "@/lib/session"
+import { useActiveOrganization } from "@/hooks/use-active-organization"
 import { getUserFullName } from "@/lib/utils/user"
 import { useEffect, useState } from "react"
 
 export default function DashboardPage() {
   const currentUser = getCurrentUser()
   const userId = currentUser?.id || ""
+  const { activeOrganization, isReady: isOrganizationReady } = useActiveOrganization()
 
   const [nowMs, setNowMs] = useState(() => Date.now())
 
@@ -50,7 +52,9 @@ export default function DashboardPage() {
 
   // Filter out drafted courses - only show published courses
   const publishedEnrollments = enrollments.filter(
-    (enrollment: EnrollmentWithCourse) => enrollment.course.status !== "draft"
+    (enrollment: EnrollmentWithCourse) =>
+      enrollment.course.status !== "draft" &&
+      (!activeOrganization?.id || enrollment.course.organizationId === activeOrganization.id)
   )
 
   // Transform enrollments to the format expected by the UI
@@ -105,7 +109,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <p className="text-[14px] font-medium text-[#F97316]">Active</p>
               <div className="mt-2 text-2xl font-semibold text-[#111827]">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#F97316]" /> : enrolledCourses.filter((c) => c.status === "in-progress").length}
+                {isLoading || !isOrganizationReady ? <Loader2 className="h-5 w-5 animate-spin text-[#F97316]" /> : enrolledCourses.filter((c) => c.status === "in-progress").length}
               </div>
               <p className="text-[14px] text-muted-foreground">courses in progress</p>
             </CardContent>
@@ -115,7 +119,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <p className="text-[14px] font-medium text-[#22C55E]">Completed</p>
               <div className="mt-2 text-2xl font-semibold text-[#111827]">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /> : enrolledCourses.filter((c) => c.status === "completed").length}
+                {isLoading || !isOrganizationReady ? <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /> : enrolledCourses.filter((c) => c.status === "completed").length}
               </div>
               <p className="text-[14px] text-muted-foreground">courses completed</p>
             </CardContent>
@@ -125,7 +129,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <p className="text-[14px] font-medium text-[#3B82F6]">Average Progress</p>
               <div className="mt-2 text-2xl font-semibold text-[#111827]">
-                {isLoading ? (
+                {isLoading || !isOrganizationReady ? (
                   <Loader2 className="h-5 w-5 animate-spin text-[#3B82F6]" />
                 ) : enrolledCourses.length > 0 ? (
                   `${Math.round(enrolledCourses.reduce((acc, c) => acc + c.progress, 0) / enrolledCourses.length)}%`
@@ -141,7 +145,7 @@ export default function DashboardPage() {
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-[#111827]">Your Courses</h2>
 
-          {isLoading ? (
+          {isLoading || !isOrganizationReady ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 className="h-7 w-7 animate-spin text-[#2C6B5B]" />
               <span className="ml-2 text-sm text-muted-foreground">Loading your courses...</span>
@@ -152,7 +156,7 @@ export default function DashboardPage() {
                 <BookOpen className="h-10 w-10 text-[#2C6B5B] mb-4" />
                 <h3 className="text-base font-semibold text-[#111827] mb-2">No courses displayed</h3>
                 <p className="text-xs text-muted-foreground text-center mb-4 max-w-md">
-                  There are no courses displayed because you have not been enrolled in any course yet. Browse available courses and enroll to get started with your learning journey.
+                  There are no courses for {activeOrganization?.name || "this organization"} yet. Browse available courses and enroll to get started.
                 </p>
                 <Button asChild className="bg-[#2C6B5B] hover:bg-[#2C6B5B]/90 text-white rounded-md h-9 px-6">
                   <Link href="/course">Browse Courses</Link>

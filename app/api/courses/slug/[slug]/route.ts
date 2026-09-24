@@ -23,6 +23,10 @@ export async function GET(
     let course = await prisma.course.findFirst({
       where: { slug },
       include: {
+        modules: {
+          orderBy: { order: "asc" },
+          include: { lessons: { orderBy: { order: "asc" } } },
+        },
         lessons: {
           orderBy: { order: "asc" },
         },
@@ -46,6 +50,10 @@ export async function GET(
       course = await prisma.course.findUnique({
         where: { id: slug },
         include: {
+          modules: {
+            orderBy: { order: "asc" },
+            include: { lessons: { orderBy: { order: "asc" } } },
+          },
           lessons: {
             orderBy: { order: "asc" },
           },
@@ -100,12 +108,26 @@ export async function GET(
     // Filter out drafted lessons/quizzes for enrolled users
     // Admins viewing their own courses should see all content
     const isEnrolled = !!enrollment
-    const filteredLessons = isEnrolled
-      ? course.lessons.filter((lesson) => lesson.status === "published")
-      : course.lessons
+    const visibleLesson = (lesson: { status: string | null }) => !isEnrolled || lesson.status === "published"
+    const filteredLessons = course.lessons.filter((lesson) => visibleLesson(lesson))
+    const filteredModules = course.modules
+      .map((module) => ({
+        ...module,
+        lessons: module.lessons.filter((lesson) => visibleLesson(lesson)),
+      }))
+      .filter((module) => !isEnrolled || module.lessons.length > 0)
     const filteredQuizzes = isEnrolled
       ? course.quizzes.filter((quiz) => quiz.status === "published")
       : course.quizzes
+
+    let completedLessonIds: string[] = []
+    if (enrollment) {
+      const completions = await prisma.lessonCompletion.findMany({
+        where: { enrollmentId: enrollment.id },
+        select: { lessonId: true },
+      })
+      completedLessonIds = completions.map((completion) => completion.lessonId)
+    }
 
     // Calculate progress (includes quiz performance if enrollment exists)
     let progress = 0
@@ -131,6 +153,7 @@ export async function GET(
     return NextResponse.json({
       ...course,
       lessons: filteredLessons,
+      modules: filteredModules,
       quizzes: filteredQuizzes,
       enrollment: enrollment
         ? {
@@ -143,6 +166,7 @@ export async function GET(
       stats: {
         totalLessons,
         completedLessons,
+        completedLessonIds,
         progress,
         quizProgress,
       },

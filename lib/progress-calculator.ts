@@ -47,25 +47,13 @@ export async function calculateCourseProgress(
   let completedLessons = 0
 
   if (enrollment) {
-    // For now, we reverse-calculate from enrollment.progress assuming it was lesson-based
-    // This maintains backward compatibility
-    // In practice, enrollment.progress might already be a combined value
-    // So we'll calculate fresh based on what we know
-    
-    // Since we don't have a LessonCompletion model, we'll use the existing enrollment.progress
-    // as a baseline for lesson progress, but we'll recalculate overall progress
-    const currentEnrollmentProgress = enrollment.progress || 0
-    
-    // Estimate completed lessons from current progress
-    // This is an approximation - ideally we'd track lesson completions separately
-    completedLessons = totalLessons > 0 
-      ? Math.round((currentEnrollmentProgress / 100) * totalLessons) 
-      : 0
-    
-    // Calculate lesson-only progress (not including quizzes)
-    lessonProgress = totalLessons > 0 
-      ? Math.round((completedLessons / totalLessons) * 100)
-      : 0
+    completedLessons = await prisma.lessonCompletion.count({
+      where: {
+        enrollmentId: enrollment.id,
+        lesson: { courseId },
+      },
+    })
+    lessonProgress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   }
 
   // Calculate quiz progress

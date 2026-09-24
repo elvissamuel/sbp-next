@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useParams, useRouter } from "next/navigation"
-import { Plus, Settings, BarChart3, Loader2, FileText, HelpCircle, Edit, Trash2, ChevronDown, MoreHorizontal } from "lucide-react"
+import { Plus, Settings, BarChart3, Loader2, HelpCircle, ChevronDown } from "lucide-react"
 import { format } from "date-fns"
-import { getCourse, deleteLesson, updateLessonStatus, updateQuizStatus, type Lesson, type Quiz, type EnrollmentWithUser } from "@/lib/api-calls"
+import { getCourse, createModule, deleteModule, updateLessonStatus, updateQuizStatus, type Quiz, type EnrollmentWithUser, type CourseModule } from "@/lib/api-calls"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getUserFullName, getUserInitials } from "@/lib/utils/user"
@@ -25,7 +25,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   DropdownMenu,
@@ -37,6 +36,12 @@ import { toast } from "sonner"
 import { useState } from "react"
 import { EditLessonDialog } from "@/components/lesson/edit-lesson-dialog"
 import { DeleteLessonDialog } from "@/components/lesson/delete-lesson-dialog"
+import { CourseModuleList } from "@/components/course/course-module-list"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 
 export default function ViewCoursePage() {
@@ -52,6 +57,10 @@ export default function ViewCoursePage() {
   // State for edit/delete lesson dialogs
   const [editingLesson, setEditingLesson] = useState<{ id: string } | null>(null)
   const [deletingLesson, setDeletingLesson] = useState<{ id: string; title: string } | null>(null)
+  const [openCreateModule, setOpenCreateModule] = useState(false)
+  const [moduleTitle, setModuleTitle] = useState("")
+  const [moduleDescription, setModuleDescription] = useState("")
+  const [moduleToDelete, setModuleToDelete] = useState<CourseModule | null>(null)
 
   // Fetch course with lessons and quizzes
   const { data: courseResponse, isLoading, error } = useQuery({
@@ -61,26 +70,41 @@ export default function ViewCoursePage() {
   })
 
   const course = courseResponse?.data
-  const lessons = course?.lessons || []
+  const modules = (course?.modules || []) as CourseModule[]
   const quizzes = course?.quizzes || []
   const enrollments = course?.enrollments || []
   const stats = course?.stats || { enrollments: 0, completionRate: 0, avgScore: 0 }
 
-  // Delete lesson mutation
-  const deleteLessonMutation = useMutation({
-    mutationFn: (lessonId: string) => deleteLesson(lessonId),
+  const createModuleMutation = useMutation({
+    mutationFn: () => createModule(courseId, { title: moduleTitle.trim(), description: moduleDescription.trim() || undefined }),
     onSuccess: () => {
-      toast.success("Lesson deleted successfully")
+      toast.success("Module created")
+      setOpenCreateModule(false)
+      setModuleTitle("")
+      setModuleDescription("")
       queryClient.invalidateQueries({ queryKey: ["course", courseId] })
     },
-    onError: (error: any) => {
-      toast.error("Failed to delete lesson", {
+    onError: (error: { message?: string }) => {
+      toast.error("Failed to create module", {
         description: error?.message || "An unexpected error occurred",
       })
     },
   })
 
-  // Update lesson status mutation
+  const deleteModuleMutation = useMutation({
+    mutationFn: (moduleId: string) => deleteModule(moduleId),
+    onSuccess: () => {
+      toast.success("Module deleted")
+      setModuleToDelete(null)
+      queryClient.invalidateQueries({ queryKey: ["course", courseId] })
+    },
+    onError: (error: { message?: string }) => {
+      toast.error("Failed to delete module", {
+        description: error?.message || "An unexpected error occurred",
+      })
+    },
+  })
+
   const updateLessonStatusMutation = useMutation({
     mutationFn: ({ lessonId, status }: { lessonId: string; status: string }) => updateLessonStatus(lessonId, status),
     onSuccess: () => {
@@ -107,10 +131,6 @@ export default function ViewCoursePage() {
       })
     },
   })
-
-  const handleDeleteLesson = (lessonId: string) => {
-    deleteLessonMutation.mutate(lessonId)
-  }
 
   const handleLessonStatusChange = (lessonId: string, status: string, title: string) => {
     setPendingLessonAction({ id: lessonId, status, title })
@@ -170,11 +190,9 @@ export default function ViewCoursePage() {
                 Create Quiz
               </Link>
             </Button>
-            <Button asChild>
-              <Link href={`/org/course/${courseId}/lesson/create`}>
-                <Plus size={16} className="mr-2" />
-                Add Lesson
-              </Link>
+            <Button type="button" onClick={() => setOpenCreateModule(true)}>
+              <Plus size={16} className="mr-2" />
+              Add Module
             </Button>
           </div>
         </div>
@@ -182,7 +200,7 @@ export default function ViewCoursePage() {
         <Tabs defaultValue="overview" className="w-full">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="lessons">Lessons</TabsTrigger>
+            <TabsTrigger value="lessons">Modules</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
           </TabsList>
 
@@ -233,27 +251,17 @@ export default function ViewCoursePage() {
                   </div>
                 </CardContent>
               </Card>
-            ) : lessons.length === 0 && quizzes.length === 0 ? (
-              <Card className="border-border/50">
-                <CardContent className="pt-6">
-                  <p className="text-muted-foreground">No lessons or quizzes yet. Create your first lesson or quiz to get started.</p>
-                  <div className="flex gap-2 mt-4">
-                    <Button asChild>
-                      <Link href={`/org/course/${courseId}/lesson/create`}>
-                        <Plus size={16} className="mr-2" />
-                        Create Lesson
-                      </Link>
-                    </Button>
-                    <Button variant="outline" asChild>
-                      <Link href={`/org/course/${courseId}/quiz/create`}>
-                        <Plus size={16} className="mr-2" />
-                        Create Quiz
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
             ) : (
+              <div className="space-y-4">
+                <CourseModuleList
+                  courseId={courseId}
+                  modules={modules}
+                  onEditLesson={(id) => setEditingLesson({ id })}
+                  onDeleteLesson={setDeletingLesson}
+                  onLessonStatusChange={handleLessonStatusChange}
+                  onDeleteModule={setModuleToDelete}
+                />
+                {quizzes.length > 0 ? (
               <Card className="border-border/50">
                 <CardContent className="p-0">
                   <Table>
@@ -267,77 +275,7 @@ export default function ViewCoursePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {lessons.map((lesson: Lesson) => (
-                        <TableRow key={lesson.id} className="border-border/40">
-                          <TableCell>
-                            <Badge variant="secondary" className="gap-1">
-                              <FileText size={14} />
-                              Lesson
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">{lesson.title}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant={lesson.status === "published" ? "default" : "outline"}
-                              >
-                                {lesson.status === "published" ? "Published" : "Draft"}
-                              </Badge>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-7 px-2">
-                                    <ChevronDown size={14} />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {lesson.status !== "draft" && (
-                                    <DropdownMenuItem
-                                      onClick={() => handleLessonStatusChange(lesson.id, "draft", lesson.title)}
-                                    >
-                                      Move to Draft
-                                    </DropdownMenuItem>
-                                  )}
-                                  {lesson.status !== "published" && (
-                                    <DropdownMenuItem
-                                      onClick={() => handleLessonStatusChange(lesson.id, "published", lesson.title)}
-                                    >
-                                      Publish
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {format(new Date(lesson.createdAt), "MMM d, yyyy")}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 px-2 hover:bg-secondary/10">
-                                  <MoreHorizontal size={16} className="text-secondary" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-white border-secondary/20">
-                                <DropdownMenuItem
-                                  onClick={() => setEditingLesson({ id: lesson.id })}
-                                  className="hover:bg-secondary/10 text-secondary"
-                                >
-                                  <Edit size={16} className="mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setDeletingLesson({ id: lesson.id, title: lesson.title })}
-                                  className="text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 size={16} className="mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+
                       {quizzes.map((quiz: Quiz) => (
                         <TableRow key={quiz.id} className="border-border/40">
                           <TableCell>
@@ -393,6 +331,8 @@ export default function ViewCoursePage() {
                   </Table>
                 </CardContent>
               </Card>
+                ) : null}
+              </div>
             )}
           </TabsContent>
 
@@ -551,6 +491,61 @@ export default function ViewCoursePage() {
             courseId={courseId}
           />
         )}
+
+        <Dialog open={openCreateModule} onOpenChange={setOpenCreateModule}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add module</DialogTitle>
+              <DialogDescription>Modules group the lessons in this course.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="module-title">Title</Label>
+                <Input
+                  id="module-title"
+                  value={moduleTitle}
+                  onChange={(event) => setModuleTitle(event.target.value)}
+                  placeholder="Module 2"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="module-description">Description</Label>
+                <Textarea
+                  id="module-description"
+                  value={moduleDescription}
+                  onChange={(event) => setModuleDescription(event.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <Button
+                type="button"
+                disabled={!moduleTitle.trim() || createModuleMutation.isPending}
+                onClick={() => createModuleMutation.mutate()}
+              >
+                {createModuleMutation.isPending ? "Creating..." : "Create module"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={!!moduleToDelete} onOpenChange={(open) => !open && setModuleToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete module</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete "{moduleToDelete?.title}" and every lesson inside it? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => moduleToDelete && deleteModuleMutation.mutate(moduleToDelete.id)}
+              >
+                Delete module
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   )

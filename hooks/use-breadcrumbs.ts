@@ -118,11 +118,12 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
         // Resource routes within a course
         if (segments.includes("resource")) {
           breadcrumbs.push({
-            label: "Resources",
+            label: "Library",
+            href: "/org/course/resource",
           })
           if (segments.includes("upload")) {
             breadcrumbs.push({
-              label: "Upload Resource",
+              label: "Update Library",
             })
           }
         }
@@ -134,14 +135,29 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
       } else if (segments.includes("resource")) {
         // Resource routes outside of a specific course (general resource management)
         breadcrumbs.push({
-          label: "Resources",
+          label: "Library",
           href: "/org/course/resource",
         })
         if (segments.includes("upload")) {
           breadcrumbs.push({
-            label: "Upload Resource",
+            label: "Update Library",
           })
         }
+      }
+    }
+
+    if (segments.includes("departments")) {
+      breadcrumbs.push({
+        label: "Departments",
+        href: "/org/departments",
+      })
+
+      const departmentIndex = segments.indexOf("departments")
+      const departmentId = segments[departmentIndex + 1]
+      if (departmentId) {
+        breadcrumbs.push({
+          label: "Members",
+        })
       }
     }
 

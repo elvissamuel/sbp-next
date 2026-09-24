@@ -30,7 +30,7 @@ export const CreateCourseSchema = z.object({
 
 export const CreateResourceSchema = z
   .object({
-    courseId: z.string().min(1, "Course is required"),
+    organizationId: z.string().min(1, "Organization is required"),
     title: z.string().min(1, "Title is required"),
     inputType: z.enum(["file", "text"]),
     content: z.string().optional(),
@@ -76,6 +76,7 @@ const SlidesSchema = z.object({
 export const CreateLessonSchema = z
   .object({
     courseId: z.string().min(1, "Course ID is required"),
+    moduleId: z.string().optional(),
     title: z.string().min(1, "Title is required"),
     content: z.string().optional(), // Optional if slides are provided
     slides: SlidesSchema.optional(), // Optional slides structure
@@ -114,4 +115,25 @@ export const InviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "member", "instructor"]).default("member"),
   requesterUserId: z.string().optional(), // User ID of the person making the invite (for permission checks)
+})
+
+export const CourseOutlineLessonSchema = z.object({
+  title: z.string().min(1, "Lesson title is required"),
+  content: z.string().optional(),
+})
+
+export const CourseOutlineModuleSchema = z.object({
+  title: z.string().min(1, "Module title is required"),
+  description: z.string().optional(),
+  lessons: z.array(CourseOutlineLessonSchema).min(1, "Each module needs at least one lesson"),
+})
+
+export const CourseOutlineSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  modules: z.array(CourseOutlineModuleSchema).min(1, "Add at least one module"),
+})
+
+export const SaveCourseOutlineSchema = CourseOutlineSchema.extend({
+  organizationId: z.string().min(1, "Organization ID is required"),
 })

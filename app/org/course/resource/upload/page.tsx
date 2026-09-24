@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import { CreateResourceSchema } from "@/lib/validation-schema"
 import { getPrimaryOrganization } from "@/lib/session"
@@ -13,14 +13,6 @@ import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import {
@@ -34,6 +26,7 @@ import {
 } from "@/components/ui/form"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
+import { LessonContentEditor } from "@/components/lesson/lesson-content-editor"
 
 type FormValues = z.infer<typeof CreateResourceSchema>
 
@@ -46,35 +39,27 @@ export default function UploadResourcePage() {
   const primaryOrganization = getPrimaryOrganization()
   const organizationId = primaryOrganization?.id || ""
 
-  // Fetch courses for the organization
-  const { data: courses, isLoading: coursesLoading } = useQuery({
-    queryKey: ["courses", organizationId],
-    queryFn: async () => {
-      if (!organizationId) return []
-      const response = await fetch(`/api/courses?organizationId=${organizationId}`)
-      if (!response.ok) throw new Error("Failed to fetch courses")
-      const data = await response.json()
-      // Ensure we always return an array
-      return Array.isArray(data) ? data : []
-    },
-    enabled: !!organizationId,
-  })
-
   const form = useForm<FormValues>({
     resolver: zodResolver(CreateResourceSchema),
     defaultValues: {
-      courseId: "",
+      organizationId: organizationId || "",
       title: "",
       inputType: "text",
       content: "",
     },
   })
 
+  useEffect(() => {
+    if (organizationId) {
+      form.setValue("organizationId", organizationId)
+    }
+  }, [organizationId, form])
+
   const uploadResourceMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const formData = new FormData()
       formData.append("title", values.title)
-      formData.append("courseId", values.courseId)
+      formData.append("organizationId", organizationId)
       formData.append("inputType", values.inputType)
 
       if (values.inputType === "file" && file) {
@@ -97,11 +82,11 @@ export default function UploadResourcePage() {
     },
     onSuccess: () => {
       // Invalidate courses query to mark it as stale
-      queryClient.invalidateQueries({ queryKey: ["courses", organizationId] })
-      // Also invalidate resources query in case it's used elsewhere
-      queryClient.invalidateQueries({ queryKey: ["resources"] })
-      // Navigate to courses page - the useEffect on the courses page will refetch on mount
-      router.push("/org/course")
+      queryClient.invalidateQueries({ queryKey: ["organization-resources", organizationId] })
+      toast.success("Library updated", {
+        description: "The resource was added to your organization library.",
+      })
+      router.push("/org/course/resource")
     },
     onError: (error: Error) => {
       form.setError("root", {
@@ -133,22 +118,31 @@ export default function UploadResourcePage() {
       return
     }
 
+    if (values.inputType === "text") {
+      const plainText = (values.content || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
+      if (!plainText) {
+        const errorMsg = "Content is required when using text input"
+        form.setError("content", { message: errorMsg })
+        return
+      }
+    }
+
     uploadResourceMutation.mutate(values)
   }
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-6">
+      <div className="max-w-4xl space-y-6">
         <AppBreadcrumbs />
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Upload Resource</h1>
-          <p className="text-muted-foreground">Add a resource to help generate lessons and quizzes</p>
+          <h1 className="text-3xl font-bold text-foreground">Update Library</h1>
+          <p className="text-muted-foreground">Add an organization resource that lesson generation can reference</p>
         </div>
 
         <Card className="border-border/50">
           <CardHeader>
             <CardTitle>Resource Details</CardTitle>
-            <CardDescription>Upload a file or paste text content as a reference</CardDescription>
+            <CardDescription>Upload a file or paste text. This resource belongs to the organization, not a single course.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -158,42 +152,6 @@ export default function UploadResourcePage() {
                     {form.formState.errors.root.message}
                   </div>
                 )}
-
-                <FormField
-                  control={form.control}
-                  name="courseId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Course</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        disabled={coursesLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a course" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Array.isArray(courses) && courses.length > 0 ? (
-                            courses.map((course: any) => (
-                              <SelectItem key={course.id} value={course.id}>
-                                {course.title}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="no-courses" disabled>
-                              No courses available
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>Select the course this resource is for</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 <FormField
                   control={form.control}
@@ -245,9 +203,9 @@ export default function UploadResourcePage() {
 
                 {inputType === "file" && (
                   <div className="space-y-2">
-                    <Label htmlFor="file">Upload File (PDF or Text)</Label>
+                    <Label htmlFor="resource-file">Upload File (PDF or Text)</Label>
                     <Input
-                      id="file"
+                      id="resource-file"
                       type="file"
                       accept=".pdf,.txt,.md"
                       onChange={(e) => {
@@ -271,15 +229,14 @@ export default function UploadResourcePage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Content</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Paste or type your content here..."
-                            rows={12}
-                            {...field}
-                          />
-                        </FormControl>
+                        <LessonContentEditor
+                          content={field.value || ""}
+                          onContentChange={field.onChange}
+                          disabled={uploadResourceMutation.isPending}
+                          textOnly
+                        />
                         <FormDescription>
-                          Paste or type the content you want to use as a reference
+                          Write or paste the content you want lesson generation to reference
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -293,10 +250,10 @@ export default function UploadResourcePage() {
                     className="flex-1"
                     disabled={uploadResourceMutation.isPending}
                   >
-                    {uploadResourceMutation.isPending ? "Uploading..." : "Upload Resource"}
+                    {uploadResourceMutation.isPending ? "Saving..." : "Add to library"}
                   </Button>
                   <Button type="button" variant="outline" className="flex-1 bg-transparent" asChild>
-                    <Link href="/org/course">Cancel</Link>
+                    <Link href="/org/course/resource">Cancel</Link>
                   </Button>
                 </div>
               </form>

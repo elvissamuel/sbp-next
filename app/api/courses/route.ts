@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       include: {
         lessons: true,
         enrollments: true,
+        _count: { select: { modules: true } },
       },
       orderBy: { createdAt: "desc" },
     })
@@ -137,6 +138,12 @@ export async function POST(request: NextRequest) {
         level: "beginner",
         price: 0,
         currency: "NGN",
+        modules: {
+          create: {
+            title: "Module 1",
+            order: 0,
+          },
+        },
       },
     })
 

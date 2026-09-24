@@ -15,6 +15,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const course = await prisma.course.findUnique({
       where: { id: courseId },
       include: {
+        modules: {
+          orderBy: { order: "asc" },
+          include: {
+            lessons: { orderBy: { order: "asc" } },
+          },
+        },
         lessons: { orderBy: { order: "asc" } },
         quizzes: {
           include: {

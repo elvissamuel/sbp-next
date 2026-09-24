@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreHorizontal, Plus, Edit2, Trash2, Loader2, Building2 } from "lucide-react"
+import { MoreHorizontal, Plus, Edit2, Trash2, Loader2, Building2, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment, type Department } from "@/lib/api-calls"
 import { getPrimaryOrganization } from "@/lib/session"
@@ -30,6 +31,7 @@ import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { format } from "date-fns"
 
 export default function DepartmentsPage() {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [openCreate, setOpenCreate] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
@@ -466,6 +468,13 @@ export default function DepartmentsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-white border-primary/20">
+                            <DropdownMenuItem
+                              className="text-primary hover:bg-primary/10 cursor-pointer"
+                              onClick={() => router.push(`/org/departments/${department.id}/members`)}
+                            >
+                              <Users size={16} className="mr-2" />
+                              View members
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-primary hover:bg-primary/10 cursor-pointer"
                               onClick={() => handleOpenEdit(department)}

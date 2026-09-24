@@ -1,7 +1,12 @@
 "use client"
 
-import { useMemo, useRef, type ComponentRef } from "react"
-import JoditEditor from "jodit-react"
+import dynamic from "next/dynamic"
+import { useMemo } from "react"
+
+const JoditEditor = dynamic(() => import("jodit-react"), {
+  ssr: false,
+  loading: () => <div className="h-[360px] rounded-md border border-border bg-muted/40" />,
+})
 
 interface JoditLessonEditorProps {
   value: string
@@ -10,8 +15,6 @@ interface JoditLessonEditorProps {
 }
 
 export function JoditLessonEditor({ value, onChange, disabled = false }: JoditLessonEditorProps) {
-  const editorRef = useRef<ComponentRef<typeof JoditEditor>>(null)
-
   const config = useMemo(
     () => ({
       readonly: disabled,
@@ -32,7 +35,6 @@ export function JoditLessonEditor({ value, onChange, disabled = false }: JoditLe
   return (
     <div className={disabled ? "opacity-70 pointer-events-none" : ""}>
       <JoditEditor
-        ref={editorRef}
         value={value}
         config={config}
         onChange={(newContent) => onChange(newContent)}
