@@ -20,8 +20,116 @@ type PdfParseModule = {
   default?: ((buffer: Buffer) => Promise<{ text: string }>) | PdfParseModule
 }
 
+type PdfGlobals = typeof globalThis & {
+  DOMMatrix?: new (init?: number[] | string) => {
+    multiplySelf: () => unknown
+    preMultiplySelf: () => unknown
+    translate: () => unknown
+    translateSelf: () => unknown
+    scale: () => unknown
+    scaleSelf: () => unknown
+    rotateSelf: () => unknown
+    invertSelf: () => unknown
+  }
+  ImageData?: new (...args: unknown[]) => unknown
+  Path2D?: new (...args: unknown[]) => unknown
+}
+
+/**
+ * pdf.js expects browser geometry classes. Vercel's Node process does not
+ * provide them, and the optional native canvas package often fails to load there.
+ */
+function ensurePdfGlobals() {
+  const globals = globalThis as PdfGlobals
+
+  if (typeof globals.DOMMatrix === "undefined") {
+    class DOMMatrixPolyfill {
+      a = 1
+      b = 0
+      c = 0
+      d = 1
+      e = 0
+      f = 0
+      is2D = true
+
+      constructor(init?: number[] | string) {
+        if (Array.isArray(init) && init.length >= 6) {
+          ;[this.a, this.b, this.c, this.d, this.e, this.f] = init
+        }
+      }
+
+      multiplySelf() {
+        return this
+      }
+      preMultiplySelf() {
+        return this
+      }
+      translate() {
+        return new DOMMatrixPolyfill()
+      }
+      translateSelf() {
+        return this
+      }
+      scale() {
+        return new DOMMatrixPolyfill()
+      }
+      scaleSelf() {
+        return this
+      }
+      rotateSelf() {
+        return this
+      }
+      invertSelf() {
+        return this
+      }
+    }
+
+    globals.DOMMatrix = DOMMatrixPolyfill
+  }
+
+  if (typeof globals.ImageData === "undefined") {
+    class ImageDataPolyfill {
+      data: Uint8ClampedArray
+      width: number
+      height: number
+
+      constructor(dataOrWidth: Uint8ClampedArray | number, widthOrHeight: number, height?: number) {
+        if (typeof dataOrWidth === "number") {
+          this.width = dataOrWidth
+          this.height = widthOrHeight
+          this.data = new Uint8ClampedArray(this.width * this.height * 4)
+        } else {
+          this.data = dataOrWidth
+          this.width = widthOrHeight
+          this.height = height ?? 0
+        }
+      }
+    }
+
+    globals.ImageData = ImageDataPolyfill as unknown as PdfGlobals["ImageData"]
+  }
+
+  if (typeof globals.Path2D === "undefined") {
+    class Path2DPolyfill {
+      addPath() {}
+      closePath() {}
+      moveTo() {}
+      lineTo() {}
+      bezierCurveTo() {}
+      quadraticCurveTo() {}
+      arc() {}
+      arcTo() {}
+      ellipse() {}
+      rect() {}
+    }
+
+    globals.Path2D = Path2DPolyfill as unknown as PdfGlobals["Path2D"]
+  }
+}
+
 export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
   try {
+    ensurePdfGlobals()
     const pdfParseModule = require("pdf-parse") as PdfParseModule | ((buffer: Buffer) => Promise<{ text: string }>)
     let text = ""
 
