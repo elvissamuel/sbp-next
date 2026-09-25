@@ -62,6 +62,72 @@ function firstParagraph(source: string): string {
   return (paragraph || source.trim()).slice(0, 500)
 }
 
+function findModuleLessonMarkers(source: string) {
+  const markers: Array<{ kind: "module" | "lesson"; title: string; index: number; length: number }> = []
+  const pattern = /^(module|lesson)\b[^\n]*$/gim
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(source))) {
+    markers.push({
+      kind: match[1].toLowerCase() === "module" ? "module" : "lesson",
+      title: match[0].trim(),
+      index: match.index,
+      length: match[0].length,
+    })
+  }
+  return markers
+}
+
+function structureByModuleLessonLabels(source: string): CourseOutline | null {
+  const markers = findModuleLessonMarkers(source)
+  if (markers.length === 0) return null
+
+  const prefix = source.slice(0, markers[0].index).trim()
+  const titleLine = prefix.split("\n").map((line) => line.trim()).find(Boolean)
+  const modules: CourseOutline["modules"] = []
+  let current: CourseOutline["modules"][number] | undefined
+
+  const ensureModule = (name: string) => {
+    const existing = modules.find((module) => module.title === name)
+    if (existing) {
+      current = existing
+      return existing
+    }
+    const created = { title: name, lessons: [] as CourseOutline["modules"][number]["lessons"] }
+    modules.push(created)
+    current = created
+    return created
+  }
+
+  if (markers[0].kind === "lesson") ensureModule("Module 1")
+
+  for (let i = 0; i < markers.length; i++) {
+    const marker = markers[i]
+    const next = markers[i + 1]
+    const body = source.slice(marker.index + marker.length, next ? next.index : source.length).trim()
+
+    if (marker.kind === "module") {
+      const module = ensureModule(marker.title)
+      if (!next || next.kind === "module") {
+        if (body) module.lessons.push({ title: marker.title, content: body })
+      } else if (body) {
+        module.description = body
+      }
+    } else {
+      const module = current ?? ensureModule("Module 1")
+      module.lessons.push({ title: marker.title, content: body })
+    }
+  }
+
+  const grouped = modules.filter((module) => module.lessons.length > 0)
+  if (grouped.length === 0) return null
+
+  return {
+    title: (titleLine || grouped[0].title).slice(0, 120),
+    description: firstParagraph(prefix || source),
+    modules: grouped,
+  }
+}
+
 function locateHeading(source: string, heading: string, from: number): number {
   const needle = heading.trim()
   if (needle.length < 3) return -1
@@ -141,37 +207,43 @@ export async function structureDocumentOutline(sourceText: string): Promise<Cour
 
   const head = source.slice(0, MODEL_CHAR_LIMIT)
   const tail = source.slice(MODEL_CHAR_LIMIT).trim()
+  const labeled = structureByModuleLessonLabels(head)
 
-  const { text } = await generateText({
-    model: geminiModel,
-    prompt: `Split the document below into a course outline. Do not rewrite, summarize, or paraphrase any of it.
+  let outline = labeled
+  if (!outline) {
+    const { text } = await generateText({
+      model: geminiModel,
+      prompt: `Split the document below into a course outline by its Module and Lesson titles. Do not rewrite, summarize, or paraphrase any of it.
 
 Return ONLY JSON with this shape:
 {
   "title": "a short course title",
   "modules": [
     {
-      "title": "module name",
+      "title": "the exact module title line from the document",
       "lessons": [
-        { "heading": "exact heading or opening line copied from the document" }
+        { "heading": "the exact lesson title line from the document" }
       ]
     }
   ]
 }
 
 Rules:
-- Do not include lesson body text. Bodies are cut from the document using the headings you return.
-- Each heading must appear verbatim in the document, in order, with the same capitalization when possible.
-- Use the document's own headings. If it has none, set heading to the first 8-12 words of each section, copied exactly.
-- Keep the original order. Use 1-8 modules and 1-12 lessons per module.
-- Do not invent sections that are not in the document.
+- A module is a line that begins with "Module", such as "Module 1", "Module One", or "Module: Safety".
+- A lesson is a line that begins with "Lesson", such as "Lesson 1", "Lesson Two", or "Lesson: Hard Hats".
+- Copy those title lines verbatim, in the order they appear.
+- Put each lesson under the module title that comes before it.
+- A lesson includes the text after its title until the next Lesson or Module title. Do not return that body text.
+- Do not split on any other heading. Do not invent modules or lessons that are not labeled this way.
+- If the document has no Module or Lesson title lines, return one module titled "Module 1" and one lesson whose heading is the first line of the document.
 
 Document:
 ${head}`,
-  })
+    })
 
-  const parsed = headingOutlineSchema.parse(parseJsonObject(text))
-  const outline = sliceDocument(head, parsed)
+    const parsed = headingOutlineSchema.parse(parseJsonObject(text))
+    outline = sliceDocument(head, parsed)
+  }
 
   if (tail) {
     const last = outline.modules[outline.modules.length - 1]
