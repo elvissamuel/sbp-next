@@ -93,7 +93,7 @@ export default function CourseOutlinePage() {
           <CardHeader>
             <CardTitle>Source</CardTitle>
             <CardDescription>
-              A document is split into the text that was extracted. A topic creates a short draft you can edit.
+              A document is grouped by its Module and Lesson titles. Each lesson runs until the next lesson. A topic creates a short draft you can edit.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -150,7 +150,7 @@ export default function CourseOutlinePage() {
             <CardHeader>
               <CardTitle>Preview</CardTitle>
               <CardDescription>
-                Lesson text from a document is the extracted passage. Edit anything before saving.
+                Each lesson is the extracted text from its title until the next lesson. Edit anything before saving.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
