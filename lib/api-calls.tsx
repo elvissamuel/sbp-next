@@ -339,22 +339,49 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
-  // Upload video file to Vercel Blob storage
-  export const uploadVideo = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
+  type StoredFile = { url: string; fileName: string; fileSize: number; contentType: string };
+
+  async function uploadToCloudinary(
+    file: File,
+    folder: "lessons" | "courses" | "organizations/logos",
+    resourceType: "image" | "video",
+  ): Promise<IApiResponse<StoredFile>> {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-      const handleUploadUrl = `${baseUrl}/api/lessons/upload-video`;
-
-      const { upload } = await import("@vercel/blob/client");
-
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl,
+      const signResponse = await fetch(`${baseUrl}/api/uploads/cloudinary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folder,
+          resourceType,
+          contentType: file.type,
+          fileSize: file.size,
+        }),
       });
+      const signed = await signResponse.json();
+      if (!signResponse.ok) {
+        throw new Error(signed.error || "Failed to start upload");
+      }
+
+      const body = new FormData();
+      body.append("file", file);
+      body.append("api_key", signed.apiKey);
+      body.append("timestamp", String(signed.timestamp));
+      body.append("signature", signed.signature);
+      body.append("folder", signed.folder);
+
+      const uploadResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${signed.cloudName}/${signed.resourceType}/upload`,
+        { method: "POST", body },
+      );
+      const uploaded = await uploadResponse.json();
+      if (!uploadResponse.ok) {
+        throw new Error(uploaded?.error?.message || "Failed to upload file");
+      }
 
       return {
         data: {
-          url: blob.url,
+          url: uploaded.secure_url,
           fileName: file.name,
           fileSize: file.size,
           contentType: file.type,
@@ -363,23 +390,19 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     } catch (error) {
       return {
         error: {
-          message: error instanceof Error ? error.message : "Failed to upload video",
+          message: error instanceof Error ? error.message : "Failed to upload file",
           name: "ApiError",
         },
       };
     }
+  }
+
+  export const uploadVideo = async (file: File): Promise<IApiResponse<StoredFile>> => {
+    return uploadToCloudinary(file, "lessons", "video");
   };
 
-  // Upload image file to Vercel Blob storage
-  export const uploadImage = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
-    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    const formData = new FormData();
-    formData.append("file", file);
-    
-    return handleApiCalls(await fetch(`${baseUrl}/api/courses/upload-image`, {
-      method: "POST",
-      body: formData,
-    }));
+  export const uploadImage = async (file: File): Promise<IApiResponse<StoredFile>> => {
+    return uploadToCloudinary(file, "courses", "image");
   };
 
   // Quiz types
@@ -950,15 +973,8 @@ export type OrganizationSettings = {
     );
   };
 
-  export const uploadOrganizationLogo = async (file: File): Promise<IApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
-    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-    const formData = new FormData();
-    formData.append("file", file);
-
-    return handleApiCalls(await fetch(`${baseUrl}/api/organizations/upload-logo`, {
-      method: "POST",
-      body: formData,
-    }));
+  export const uploadOrganizationLogo = async (file: File): Promise<IApiResponse<StoredFile>> => {
+    return uploadToCloudinary(file, "organizations/logos", "image");
   };
 
   export const updateDepartment = async (
