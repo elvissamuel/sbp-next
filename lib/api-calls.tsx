@@ -341,14 +341,14 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
 
   type StoredFile = { url: string; fileName: string; fileSize: number; contentType: string };
 
-  async function uploadToCloudinary(
+  async function uploadToR2(
     file: File,
     folder: "lessons" | "courses" | "organizations/logos",
     resourceType: "image" | "video",
   ): Promise<IApiResponse<StoredFile>> {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
-      const signResponse = await fetch(`${baseUrl}/api/uploads/cloudinary`, {
+      const signResponse = await fetch(`${baseUrl}/api/uploads/r2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -356,32 +356,26 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
           resourceType,
           contentType: file.type,
           fileSize: file.size,
+          fileName: file.name,
         }),
       });
-      const signed = await signResponse.json();
-      if (!signResponse.ok) {
+      const signed = await signResponse.json() as { uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string };
+      if (!signResponse.ok || !signed.uploadUrl || !signed.publicUrl) {
         throw new Error(signed.error || "Failed to start upload");
       }
 
-      const body = new FormData();
-      body.append("file", file);
-      body.append("api_key", signed.apiKey);
-      body.append("timestamp", String(signed.timestamp));
-      body.append("signature", signed.signature);
-      body.append("folder", signed.folder);
-
-      const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${signed.cloudName}/${signed.resourceType}/upload`,
-        { method: "POST", body },
-      );
-      const uploaded = await uploadResponse.json();
+      const uploadResponse = await fetch(signed.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": signed.contentType || file.type },
+        body: file,
+      });
       if (!uploadResponse.ok) {
-        throw new Error(uploaded?.error?.message || "Failed to upload file");
+        throw new Error("Failed to upload file");
       }
 
       return {
         data: {
-          url: uploaded.secure_url,
+          url: signed.publicUrl,
           fileName: file.name,
           fileSize: file.size,
           contentType: file.type,
@@ -398,11 +392,11 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
   }
 
   export const uploadVideo = async (file: File): Promise<IApiResponse<StoredFile>> => {
-    return uploadToCloudinary(file, "lessons", "video");
+    return uploadToR2(file, "lessons", "video");
   };
 
   export const uploadImage = async (file: File): Promise<IApiResponse<StoredFile>> => {
-    return uploadToCloudinary(file, "courses", "image");
+    return uploadToR2(file, "courses", "image");
   };
 
   // Quiz types
@@ -974,7 +968,7 @@ export type OrganizationSettings = {
   };
 
   export const uploadOrganizationLogo = async (file: File): Promise<IApiResponse<StoredFile>> => {
-    return uploadToCloudinary(file, "organizations/logos", "image");
+    return uploadToR2(file, "organizations/logos", "image");
   };
 
   export const updateDepartment = async (
