@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 })
     }
 
-    const { courseId, title, description, status, quizType, numQuestions, resourceIds, lessonIds } = validationResult.data
+    const { courseId, title, description, status, quizType, numQuestions, resourceIds, lessonIds, afterLessonId } = validationResult.data
 
     // Verify course exists
     const course = await prisma.course.findUnique({
@@ -51,6 +51,18 @@ export async function POST(request: NextRequest) {
 
     if (!course) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
+    }
+
+    let placementLessonId: string | null = null
+    if (afterLessonId) {
+      const placementLesson = await prisma.lesson.findFirst({
+        where: { id: afterLessonId, courseId },
+        select: { id: true },
+      })
+      if (!placementLesson) {
+        return NextResponse.json({ error: "Choose a lesson from this course" }, { status: 400 })
+      }
+      placementLessonId = placementLesson.id
     }
 
     // Fetch reference lessons if provided (priority: lessons > resources > course description)
@@ -114,6 +126,7 @@ export async function POST(request: NextRequest) {
         title,
         description: description || undefined,
         status: status || "draft",
+        afterLessonId: placementLessonId,
         totalPoints,
         passingScore,
         questions: {

@@ -18,11 +18,16 @@ import {
   Clock,
   Trophy,
   AlertCircle,
+  Calendar,
+  ListChecks,
+  Target,
+  RotateCcw,
   Volume2,
   VolumeX,
 } from "lucide-react"
 import { getQuiz, getCourseBySlug, submitQuiz, type Quiz, type QuizQuestion } from "@/lib/api-calls"
 import { buildCourseSequence } from "@/lib/course-sequence"
+import { isQuizProgressComplete, QUIZ_MAX_ATTEMPTS } from "@/lib/quiz-attempts"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
@@ -49,10 +54,19 @@ export default function ClassroomQuizView() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [showResults, setShowResults] = useState(false)
-  const [quizResult, setQuizResult] = useState<{ score: number; totalPoints: number; passed: boolean } | null>(null)
+  const [quizResult, setQuizResult] = useState<{
+    score: number
+    totalPoints: number
+    passed: boolean
+    review: Array<{
+      number: number
+      correct: boolean
+    }>
+  } | null>(null)
   const [attemptInfo, setAttemptInfo] = useState<{ attemptsCount: number; maxAttempts: number } | null>(null)
   const [isSoundEnabled, setIsSoundEnabled] = useState(true)
   const [hasStartedAudio, setHasStartedAudio] = useState(false)
+  const [hasStartedQuiz, setHasStartedQuiz] = useState(false)
 
   const ambienceRef = useRef<HTMLAudioElement | null>(null)
   const winRef = useRef<HTMLAudioElement | null>(null)
@@ -156,7 +170,7 @@ export default function ClassroomQuizView() {
   const courseLoadError = courseResponse?.error as any
   const lessons = course?.lessons || []
   const quizzes = course?.quizzes || []
-  const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
+  const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0, certificateEligible: false }
   const enrollment = course?.enrollment
 
   if (courseLoadError?.message?.toLowerCase?.().includes("deadline") || courseLoadError?.message?.toLowerCase?.().includes("expired")) {
@@ -180,19 +194,16 @@ export default function ClassroomQuizView() {
   const currentQuestion = questions[currentQuestionIndex]
   const totalQuestions = questions.length
 
-  // Automatically start ambience when arriving on the quiz (e.g. from a lesson),
-  // as long as sound is enabled and results aren't being shown yet.
   useEffect(() => {
-    if (!showResults && totalQuestions > 0 && isSoundEnabled) {
+    if (hasStartedQuiz && !showResults && totalQuestions > 0 && isSoundEnabled) {
       startBackgroundSound()
     }
-  }, [showResults, totalQuestions, isSoundEnabled])
+  }, [hasStartedQuiz, showResults, totalQuestions, isSoundEnabled])
 
   const completedIds = stats.completedLessonIds || []
   const isQuizCompleted = (id: string) => {
     const q = quizzes.find((qz: Quiz) => qz.id === id)
-    const attemptsCount = q?.attempts?.length || 0
-    return !!q?.attempts?.[0]?.passed || attemptsCount >= 2
+    return isQuizProgressComplete(q?.attempts)
   }
 
   const { items: allContent } = buildCourseSequence({
@@ -226,6 +237,7 @@ export default function ClassroomQuizView() {
           score: response.data.score,
           totalPoints: response.data.totalPoints,
           passed: response.data.passed,
+          review: response.data.review || [],
         })
         setAttemptInfo({
           attemptsCount: response.data.attemptsCount,
@@ -327,8 +339,9 @@ export default function ClassroomQuizView() {
   if (showResults && quizResult) {
     const percentage = Math.round((quizResult.score / quizResult.totalPoints) * 100)
     const isPassed = quizResult.passed
-    const maxAttempts = attemptInfo?.maxAttempts ?? 2
-    const attemptsCount = attemptInfo?.attemptsCount ?? 0
+    const storedAttempts = quizzes.find((item: Quiz) => item.id === quizId)?.attempts || []
+    const maxAttempts = attemptInfo?.maxAttempts ?? QUIZ_MAX_ATTEMPTS
+    const attemptsCount = Math.max(attemptInfo?.attemptsCount ?? 0, storedAttempts.length)
     const attemptsLeft = Math.max(0, maxAttempts - attemptsCount)
     const canRetake = !isPassed && attemptsLeft > 0
     const canProceedAfterFail = !isPassed && attemptsLeft === 0
@@ -355,7 +368,7 @@ export default function ClassroomQuizView() {
                     </div>
                     <div>
                       <h1 className="text-4xl font-bold text-[#01402E] mb-2">
-                        {isPassed ? "Congratulations!" : "Try Again!"}
+                        {isPassed ? "Congratulations!" : canProceedAfterFail ? "Attempts used" : "Try Again!"}
                       </h1>
                       <p className="text-xl text-muted-foreground">
                         You scored {quizResult.score} out of {quizResult.totalPoints} points
@@ -369,11 +382,35 @@ export default function ClassroomQuizView() {
                         {percentage}%
                       </p>
                     </div>
+                    {quizResult.review.length > 0 ? (
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {quizResult.review.map((item) => (
+                          <div
+                            key={item.number}
+                            className={cn(
+                              "inline-flex items-center text-[#DE1915] gap-2 rounded-md border px-3 py-2 text-sm font-medium",
+                              item.correct ? "border-[#01402E]/30 bg-[#01402E]/5 text-[#01402E]" : "border-[#DE1915]/30 bg-[#DE1915]/5 text-[#DE1915]",
+                            )}
+                          >
+                            {item.correct ? (
+                              <CheckCircle2 className="h-4 w-4" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4" />
+                            )}
+                            Question {item.number}: {item.correct ? "Correct" : "Wrong"}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     {quiz.description && (
                       <p className="text-muted-foreground">{quiz.description}</p>
                     )}
                     <div className="flex gap-3 justify-center pt-4">
-                      {(isPassed || canProceedAfterFail) && nextItem ? (
+                      {(isPassed || stats.certificateEligible) && !nextItem ? (
+                        <Button asChild size="lg" className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
+                          <Link href={`/classroom/course/${slug}/completed`}>View certificate</Link>
+                        </Button>
+                      ) : (isPassed || canProceedAfterFail) && nextItem ? (
                         <Button asChild size="lg" className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
                           <Link href={
                             nextItem.type === "lesson"
@@ -392,6 +429,7 @@ export default function ClassroomQuizView() {
                       {canRetake && (
                         <Button size="lg" onClick={() => {
                           setShowResults(false)
+                          setHasStartedQuiz(false)
                           setCurrentQuestionIndex(0)
                           setSelectedAnswers({})
                           setQuizResult(null)
@@ -407,6 +445,95 @@ export default function ClassroomQuizView() {
               </Card>
             </div>
           </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const currentQuizAttempts = quizzes.find((item: Quiz) => item.id === quizId)?.attempts || []
+  const attemptsExhausted = !currentQuizAttempts.some((attempt) => attempt.passed) && currentQuizAttempts.length >= QUIZ_MAX_ATTEMPTS
+  const nextHref = nextItem
+    ? nextItem.type === "lesson"
+      ? `/classroom/course/${slug}/lesson/${nextItem.id}`
+      : `/classroom/course/${slug}/quiz/${nextItem.id}`
+    : `/classroom/course/${slug}`
+
+  if (!hasStartedQuiz) {
+    const passPercent = quiz.totalPoints > 0
+      ? Math.round((quiz.passingScore / quiz.totalPoints) * 100)
+      : 70
+    const deadlineValue = (quiz.course as { deadline?: string | Date | null } | undefined)?.deadline
+    const deadlineLabel = deadlineValue ? new Date(deadlineValue).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : null
+
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 bg-white">
+          <AppBreadcrumbs />
+          <Card className="overflow-hidden border-[#01402E]/15 bg-white">
+            <div className="bg-[#01402E]/5 px-6 py-8 sm:px-8">
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-xl space-y-4">
+                  <p className="text-sm font-medium text-[#01402E]">Quiz</p>
+                  <h1 className="text-3xl font-bold text-foreground">{quiz.title}</h1>
+                  {quiz.description ? (
+                    <p className="text-muted-foreground">{quiz.description}</p>
+                  ) : (
+                    <p className="text-muted-foreground">Answer the questions to continue this course.</p>
+                  )}
+                  {attemptsExhausted ? (
+                    <Button asChild size="lg" className="bg-[#01402E] text-white hover:bg-[#01402E]/90">
+                      <Link href={nextHref}>
+                        {nextItem ? `Next ${nextItem.type === "lesson" ? "lesson" : "quiz"}` : "Back to course"}
+                        <ChevronRight size={18} className="ml-2" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="bg-[#01402E] text-white hover:bg-[#01402E]/90"
+                      disabled={totalQuestions === 0}
+                      onClick={() => setHasStartedQuiz(true)}
+                    >
+                      Start quiz
+                    </Button>
+                  )}
+                </div>
+                <div className="flex h-36 w-full items-center justify-center rounded-xl bg-white md:w-56">
+                  <HelpCircle className="h-16 w-16 text-[#01402E]" />
+                </div>
+              </div>
+            </div>
+            <CardContent className="grid gap-6 px-6 py-6 sm:px-8 md:grid-cols-[1fr_280px]">
+              <p className="text-sm text-foreground">
+                {attemptsExhausted
+                  ? "You have used both attempts. Continue with the rest of the course."
+                  : "Pass this quiz to continue. After both attempts, you can move on either way."}
+              </p>
+              <div className="rounded-lg border border-[#01402E]/15 p-4">
+                <p className="mb-3 text-sm font-semibold text-foreground">What to expect</p>
+                <ul className="space-y-3 text-sm text-muted-foreground">
+                  {deadlineLabel ? (
+                    <li className="flex items-start gap-2">
+                      <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-[#01402E]" />
+                      <span>Due {deadlineLabel}</span>
+                    </li>
+                  ) : null}
+                  <li className="flex items-start gap-2">
+                    <ListChecks className="mt-0.5 h-4 w-4 shrink-0 text-[#01402E]" />
+                    <span>{totalQuestions} {totalQuestions === 1 ? "question" : "questions"}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Target className="mt-0.5 h-4 w-4 shrink-0 text-[#01402E]" />
+                    <span>Pass mark {passPercent}%</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-[#01402E]" />
+                    <span>2 attempts</span>
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     )

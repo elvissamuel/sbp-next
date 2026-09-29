@@ -129,6 +129,8 @@ export async function POST(
       },
     })
 
+    const lessonIdMap = new Map<string, string>()
+
     for (const sourceModule of sourceCourse.modules) {
       const createdModule = await prisma.module.create({
         data: {
@@ -140,7 +142,7 @@ export async function POST(
       })
 
       for (const lesson of sourceModule.lessons) {
-        await prisma.lesson.create({
+        const createdLesson = await prisma.lesson.create({
           data: {
             courseId: newCourse.id,
             moduleId: createdModule.id,
@@ -154,6 +156,7 @@ export async function POST(
             status: lesson.status,
           },
         })
+        lessonIdMap.set(lesson.id, createdLesson.id)
       }
     }
 
@@ -166,6 +169,7 @@ export async function POST(
           description: quiz.description,
           passingScore: quiz.passingScore,
           totalPoints: quiz.totalPoints,
+          afterLessonId: quiz.afterLessonId ? lessonIdMap.get(quiz.afterLessonId) : undefined,
         },
       })
 

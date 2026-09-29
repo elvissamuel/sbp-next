@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { updateEnrollmentProgress } from "@/lib/progress-calculator"
+import { QUIZ_MAX_ATTEMPTS } from "@/lib/quiz-attempts"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const maxAttempts = 2
+    const maxAttempts = QUIZ_MAX_ATTEMPTS
     const existingAttemptsCount = await prisma.quizAttempt.count({
       where: {
         userId,
@@ -51,18 +52,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate score
+    // Calculate score and record which answers were right
     let score = 0
     const answersObj = typeof answers === "string" ? JSON.parse(answers) : answers
-
-    for (const question of quiz.questions) {
-      const userAnswer = answersObj[question.id]
-      const correctAnswer = question.correctAnswer
-
-      if (userAnswer === correctAnswer) {
-        score += question.points
+    const orderedQuestions = [...quiz.questions].sort((a, b) => a.order - b.order)
+    const review = orderedQuestions.map((question, index) => {
+      const userAnswer = typeof answersObj[question.id] === "string" ? answersObj[question.id] : ""
+      const correct = userAnswer === question.correctAnswer
+      if (correct) score += question.points
+      return {
+        number: index + 1,
+        correct,
       }
-    }
+    })
 
     // Check if passed
     const passed = score >= quiz.passingScore
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
       passed,
       score,
       totalPoints: quiz.totalPoints,
+      review,
       attemptsCount,
       maxAttempts,
       progress: progressData.progress,

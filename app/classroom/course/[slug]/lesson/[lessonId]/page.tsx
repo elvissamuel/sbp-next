@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, Loader2 } from "lucide-react"
 import { getLesson, getCourseBySlug, type Lesson, type Quiz } from "@/lib/api-calls"
 import { buildCourseSequence } from "@/lib/course-sequence"
+import { isQuizProgressComplete } from "@/lib/quiz-attempts"
 import { getCurrentUser } from "@/lib/session"
 import { toast } from "sonner"
 import { SlideViewer } from "@/components/lesson/slide-viewer"
@@ -52,7 +53,7 @@ export default function ClassroomLessonView() {
   const courseLoadError = courseResponse?.error as any
   const lessons = course?.lessons || []
   const quizzes = course?.quizzes || []
-  const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
+  const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0, certificateEligible: false }
   const enrollment = course?.enrollment
 
   if (courseLoadError?.message?.toLowerCase?.().includes("deadline") || courseLoadError?.message?.toLowerCase?.().includes("expired")) {
@@ -98,7 +99,7 @@ export default function ClassroomLessonView() {
   const completedIds = stats.completedLessonIds || []
   const isQuizCompleted = (quizId: string) => {
     const quiz = quizzes.find((q: Quiz) => q.id === quizId)
-    return !!quiz?.attempts?.[0]?.passed
+    return isQuizProgressComplete(quiz?.attempts)
   }
 
   const { items: allContent } = buildCourseSequence({
@@ -419,7 +420,7 @@ export default function ClassroomLessonView() {
                             : `/classroom/course/${slug}/quiz/${previousItem.id}`
                         }
                       >
-                        Previous lesson
+                        {previousItem.type === "quiz" ? "Previous quiz" : "Previous lesson"}
                       </Link>
                     </Button>
                   ) : (
@@ -437,6 +438,10 @@ export default function ClassroomLessonView() {
                       >
                         {nextItem.type === "quiz" ? "Take Quiz" : "Next Lesson"}
                       </Link>
+                    </Button>
+                  ) : stats.certificateEligible ? (
+                    <Button asChild className="h-10 px-10 rounded-md bg-[#01402E] hover:bg-[#01402E]/90 text-white">
+                      <Link href={`/classroom/course/${slug}/completed`}>View certificate</Link>
                     </Button>
                   ) : (
                     <div />

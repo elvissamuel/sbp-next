@@ -282,6 +282,15 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  export const updateModule = async (moduleId: string, data: { title: string; description?: string }): Promise<IApiResponse<CourseModule>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/modules/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+  };
+
   export const deleteModule = async (moduleId: string): Promise<IApiResponse<{ success: boolean }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/modules/${moduleId}`, {
@@ -408,11 +417,13 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     passingScore: number;
     totalPoints: number;
     status?: string;
+    afterLessonId?: string | null;
     createdAt: Date;
     updatedAt: Date;
     questions?: QuizQuestion[];
     attempts?: Array<{
       id: string
+      userId?: string
       passed: boolean
       score: number
       attemptedAt: Date
@@ -448,6 +459,15 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     }));
   };
 
+  export const updateQuizPlacement = async (quizId: string, afterLessonId: string | null): Promise<IApiResponse<Quiz>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/${quizId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ afterLessonId }),
+    }));
+  };
+
   export const updateQuizStatus = async (quizId: string, status: string): Promise<IApiResponse<Quiz>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/${quizId}`, {
@@ -461,7 +481,18 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
     userId: string,
     quizId: string,
     answers: Record<string, string>
-  ): Promise<IApiResponse<{ attempt: any; passed: boolean; score: number; totalPoints: number; attemptsCount: number; maxAttempts: number }>> => {
+  ): Promise<IApiResponse<{
+    attempt: any
+    passed: boolean
+    score: number
+    totalPoints: number
+    attemptsCount: number
+    maxAttempts: number
+    review: Array<{
+      number: number
+      correct: boolean
+    }>
+  }>> => {
     const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
     return handleApiCalls(await fetch(`${baseUrl}/api/quizzes/submit`, {
       method: "POST",
@@ -487,6 +518,10 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
       email: string;
       image: string | null;
     };
+    completions?: Array<{
+      lessonId: string;
+      completedAt: Date;
+    }>;
   };
 
   export type CourseWithStats = CourseWithRelations & {
@@ -524,7 +559,26 @@ async function handleApiCalls<T> (response: Response): Promise<IApiResponse<T>> 
       completedLessons: number;
       completedLessonIds?: string[];
       progress: number;
+      certificateEligible?: boolean;
     };
+  };
+
+  export type CourseCertificate = {
+    organizationName: string;
+    themePrimaryColor?: string | null;
+    themeSecondaryColor?: string | null;
+    courseTitle: string;
+    studentName: string;
+    completedAt: string;
+    signatures: Array<{ name: string; title: string }>;
+  };
+
+  export const getCourseCertificate = async (slug: string, userId: string): Promise<IApiResponse<CourseCertificate>> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BROWSER_URL || "";
+    return handleApiCalls(await fetch(`${baseUrl}/api/courses/slug/${slug}/certificate?userId=${encodeURIComponent(userId)}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }));
   };
 
   export const getCourseBySlug = async (slug: string, userId?: string): Promise<IApiResponse<CourseBySlug>> => {

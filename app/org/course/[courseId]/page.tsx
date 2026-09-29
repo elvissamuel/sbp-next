@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { useParams, useRouter } from "next/navigation"
 import { Plus, Settings, BarChart3, Loader2, HelpCircle, ChevronDown } from "lucide-react"
 import { format } from "date-fns"
-import { getCourse, createModule, deleteModule, updateLessonStatus, updateQuizStatus, type Quiz, type EnrollmentWithUser, type CourseModule } from "@/lib/api-calls"
+import { getCourse, createModule, updateModule, deleteModule, updateLessonStatus, updateQuizStatus, updateQuizPlacement, type Quiz, type EnrollmentWithUser, type CourseModule } from "@/lib/api-calls"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getUserFullName, getUserInitials } from "@/lib/utils/user"
@@ -61,6 +61,9 @@ export default function ViewCoursePage() {
   const [moduleTitle, setModuleTitle] = useState("")
   const [moduleDescription, setModuleDescription] = useState("")
   const [moduleToDelete, setModuleToDelete] = useState<CourseModule | null>(null)
+  const [moduleToEdit, setModuleToEdit] = useState<CourseModule | null>(null)
+  const [editModuleTitle, setEditModuleTitle] = useState("")
+  const [editModuleDescription, setEditModuleDescription] = useState("")
 
   // Fetch course with lessons and quizzes
   const { data: courseResponse, isLoading, error } = useQuery({
@@ -91,6 +94,28 @@ export default function ViewCoursePage() {
     },
   })
 
+  const updateModuleMutation = useMutation({
+    mutationFn: async () => {
+      if (!moduleToEdit) throw new Error("Module not found")
+      const response = await updateModule(moduleToEdit.id, {
+        title: editModuleTitle.trim(),
+        description: editModuleDescription.trim(),
+      })
+      if (response.error) throw new Error(response.error.message)
+      return response
+    },
+    onSuccess: () => {
+      toast.success("Module updated")
+      setModuleToEdit(null)
+      queryClient.invalidateQueries({ queryKey: ["course", courseId] })
+    },
+    onError: (error: { message?: string }) => {
+      toast.error("Failed to update module", {
+        description: error?.message || "An unexpected error occurred",
+      })
+    },
+  })
+
   const deleteModuleMutation = useMutation({
     mutationFn: (moduleId: string) => deleteModule(moduleId),
     onSuccess: () => {
@@ -100,6 +125,23 @@ export default function ViewCoursePage() {
     },
     onError: (error: { message?: string }) => {
       toast.error("Failed to delete module", {
+        description: error?.message || "An unexpected error occurred",
+      })
+    },
+  })
+
+  const updateQuizPlacementMutation = useMutation({
+    mutationFn: async ({ quizId, afterLessonId }: { quizId: string; afterLessonId: string | null }) => {
+      const response = await updateQuizPlacement(quizId, afterLessonId)
+      if (response.error) throw new Error(response.error.message)
+      return response
+    },
+    onSuccess: () => {
+      toast.success("Quiz order updated")
+      queryClient.invalidateQueries({ queryKey: ["course", courseId] })
+    },
+    onError: (error: { message?: string }) => {
+      toast.error("Failed to update quiz order", {
         description: error?.message || "An unexpected error occurred",
       })
     },
@@ -259,6 +301,11 @@ export default function ViewCoursePage() {
                   onEditLesson={(id) => setEditingLesson({ id })}
                   onDeleteLesson={setDeletingLesson}
                   onLessonStatusChange={handleLessonStatusChange}
+                  onEditModule={(module) => {
+                    setModuleToEdit(module)
+                    setEditModuleTitle(module.title)
+                    setEditModuleDescription(module.description || "")
+                  }}
                   onDeleteModule={setModuleToDelete}
                 />
                 {quizzes.length > 0 ? (
@@ -284,7 +331,43 @@ export default function ViewCoursePage() {
                               Quiz
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">{quiz.title}</TableCell>
+                          <TableCell className="font-medium">
+                            <div>{quiz.title}</div>
+                            {(() => {
+                              const isSavingPlacement = updateQuizPlacementMutation.isPending && updateQuizPlacementMutation.variables?.quizId === quiz.id
+                              const selectedLessonId = isSavingPlacement
+                                ? updateQuizPlacementMutation.variables?.afterLessonId || ""
+                                : quiz.afterLessonId || ""
+                              return (
+                                <div className="mt-1 flex items-center gap-2">
+                                  <select
+                                    className="h-8 max-w-[240px] rounded-md border border-border bg-white px-2 text-xs font-normal text-foreground disabled:cursor-wait disabled:opacity-70"
+                                    value={selectedLessonId}
+                                    disabled={isSavingPlacement}
+                                    onChange={(event) => updateQuizPlacementMutation.mutate({
+                                      quizId: quiz.id,
+                                      afterLessonId: event.target.value || null,
+                                    })}
+                                  >
+                                    <option value="">After all lessons</option>
+                                    {modules.flatMap((module) =>
+                                      (module.lessons || []).map((lesson) => (
+                                        <option key={lesson.id} value={lesson.id}>
+                                          After {module.title}: {lesson.title}
+                                        </option>
+                                      )),
+                                    )}
+                                  </select>
+                                  {isSavingPlacement ? (
+                                    <span className="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      Saving
+                                    </span>
+                                  ) : null}
+                                </div>
+                              )
+                            })()}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Badge
@@ -362,6 +445,7 @@ export default function ViewCoursePage() {
                         <TableHead>Progress</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Enrolled</TableHead>
+                        <TableHead className="w-8">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -419,6 +503,11 @@ export default function ViewCoursePage() {
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(enrollment.createdAt), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/org/course/${courseId}/student/${enrollment.userId}`}>View</Link>
+                              </Button>
                             </TableCell>
                           </TableRow>
                         )
@@ -523,6 +612,41 @@ export default function ViewCoursePage() {
                 onClick={() => createModuleMutation.mutate()}
               >
                 {createModuleMutation.isPending ? "Creating..." : "Create module"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!moduleToEdit} onOpenChange={(open) => !open && setModuleToEdit(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit module</DialogTitle>
+              <DialogDescription>Update the title and description for this module.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-module-title">Title</Label>
+                <Input
+                  id="edit-module-title"
+                  value={editModuleTitle}
+                  onChange={(event) => setEditModuleTitle(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-module-description">Description</Label>
+                <Textarea
+                  id="edit-module-description"
+                  value={editModuleDescription}
+                  onChange={(event) => setEditModuleDescription(event.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <Button
+                type="button"
+                disabled={!editModuleTitle.trim() || updateModuleMutation.isPending}
+                onClick={() => updateModuleMutation.mutate()}
+              >
+                {updateModuleMutation.isPending ? "Saving..." : "Save module"}
               </Button>
             </div>
           </DialogContent>

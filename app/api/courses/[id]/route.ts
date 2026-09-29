@@ -52,6 +52,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                 image: true,
               },
             },
+            completions: {
+              select: {
+                lessonId: true,
+                completedAt: true,
+              },
+            },
           },
         },
         resources: true,
