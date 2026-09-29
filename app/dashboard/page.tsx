@@ -70,6 +70,7 @@ export default function DashboardPage() {
 
     return {
       id: course.id,
+      slug: course.slug,
       title: course.title,
       progress: progress,
       status: status,
@@ -264,7 +265,7 @@ export default function DashboardPage() {
                             ) : null}
                           </div>
                           <Button asChild className="w-full h-9 rounded-md bg-primary hover:bg-primary/90 text-white text-xs">
-                            <Link href={`/classroom/course/${course.id}`}>Start learning</Link>
+                            <Link href={`/classroom/course/${course.slug}/completed`}>View certificate</Link>
                           </Button>
                         </CardContent>
                       </Card>

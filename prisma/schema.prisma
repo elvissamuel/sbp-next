@@ -208,6 +208,7 @@ model Lesson {
   // Relations
   resources   LessonResource[]
   completions LessonCompletion[]
+  quizzesAfter Quiz[]
 
   @@index([courseId])
   @@index([moduleId])
@@ -286,6 +287,8 @@ model Quiz {
   passingScore Float   @default(70)
   totalPoints Float   @default(100)
   status      String   @default("draft") // draft, published
+  afterLessonId String?
+  afterLesson Lesson? @relation(fields: [afterLessonId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -294,6 +297,7 @@ model Quiz {
   attempts    QuizAttempt[]
 
   @@index([courseId])
+  @@index([afterLessonId])
 }
 
 // Quiz Questions

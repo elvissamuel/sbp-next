@@ -10,7 +10,7 @@ import { prisma } from "@/lib/db"
 export async function calculateCourseProgress(
   userId: string,
   courseId: string
-): Promise<{ progress: number; completedLessons: number; totalLessons: number; quizProgress: number }> {
+): Promise<{ progress: number; completedLessons: number; totalLessons: number; quizProgress: number; certificateEligible: boolean; earnedAt: Date | null }> {
   // Get course with lessons and quizzes
   const course = await prisma.course.findUnique({
     where: { id: courseId },
@@ -97,11 +97,44 @@ export async function calculateCourseProgress(
   // Ensure progress is between 0 and 100
   overallProgress = Math.max(0, Math.min(100, overallProgress))
 
+  const publishedLessons = course.lessons.filter((lesson) => lesson.status === "published")
+  const publishedQuizzes = course.quizzes.filter((quiz) => quiz.status === "published")
+  let certificateEligible = false
+  let earnedAt: Date | null = null
+
+  if (enrollment && publishedLessons.length + publishedQuizzes.length > 0) {
+    const completions = await prisma.lessonCompletion.findMany({
+      where: {
+        enrollmentId: enrollment.id,
+        lessonId: { in: publishedLessons.map((lesson) => lesson.id) },
+      },
+      select: { lessonId: true, completedAt: true },
+    })
+    const completedIds = new Set(completions.map((completion) => completion.lessonId))
+    const lessonsDone = publishedLessons.every((lesson) => completedIds.has(lesson.id))
+    const quizzesPassed = publishedQuizzes.every((quiz) => quiz.attempts.some((attempt) => attempt.passed))
+    certificateEligible = lessonsDone && quizzesPassed
+
+    if (certificateEligible) {
+      for (const completion of completions) {
+        if (!earnedAt || completion.completedAt > earnedAt) earnedAt = completion.completedAt
+      }
+      for (const quiz of publishedQuizzes) {
+        for (const attempt of quiz.attempts) {
+          if (!attempt.passed) continue
+          if (!earnedAt || attempt.attemptedAt > earnedAt) earnedAt = attempt.attemptedAt
+        }
+      }
+    }
+  }
+
   return {
     progress: overallProgress,
     completedLessons,
     totalLessons,
     quizProgress: Math.round(quizProgress),
+    certificateEligible,
+    earnedAt,
   }
 }
 
@@ -111,11 +144,21 @@ export async function calculateCourseProgress(
 export async function updateEnrollmentProgress(
   userId: string,
   courseId: string
-): Promise<{ progress: number; completedLessons: number; totalLessons: number; quizProgress: number }> {
+): Promise<{ progress: number; completedLessons: number; totalLessons: number; quizProgress: number; certificateEligible: boolean; earnedAt: Date | null }> {
   const progressData = await calculateCourseProgress(userId, courseId)
+  const shouldComplete = progressData.progress === 100 || progressData.certificateEligible
+  const existing = await prisma.enrollment.findUnique({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId,
+      },
+    },
+    select: { completedAt: true },
+  })
+  const completedAt = existing?.completedAt ?? progressData.earnedAt ?? new Date()
 
-  // Update enrollment
-  const enrollment = await prisma.enrollment.upsert({
+  await prisma.enrollment.upsert({
     where: {
       userId_courseId: {
         userId,
@@ -125,13 +168,13 @@ export async function updateEnrollmentProgress(
     create: {
       userId,
       courseId,
-      status: "active",
+      status: shouldComplete ? "completed" : "active",
       progress: progressData.progress,
+      completedAt: shouldComplete ? completedAt : null,
     },
     update: {
       progress: progressData.progress,
-      status: progressData.progress === 100 ? "completed" : undefined,
-      completedAt: progressData.progress === 100 ? new Date() : undefined,
+      ...(shouldComplete ? { status: "completed", completedAt } : {}),
     },
   })
 

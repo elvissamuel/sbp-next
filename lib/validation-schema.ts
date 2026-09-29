@@ -108,6 +108,7 @@ export const CreateQuizSchema = z.object({
   numQuestions: z.number().int().min(1).max(50).default(5),
   resourceIds: z.array(z.string()).optional(), // Optional array of resource IDs to reference
   lessonIds: z.array(z.string()).optional(), // Optional array of lesson IDs to reference
+  afterLessonId: z.string().optional(),
 })
 
 export const InviteMemberSchema = z.object({

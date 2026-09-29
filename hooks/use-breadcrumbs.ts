@@ -102,6 +102,12 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
           }
         }
 
+        if (segments.includes("student")) {
+          breadcrumbs.push({
+            label: "Performance",
+          })
+        }
+
         // Stats routes
         if (segments.includes("stats")) {
           breadcrumbs.push({

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { CheckCircle2, Circle, Loader2, HelpCircle, PlayCircle } from "lucide-react"
 import { getCourseBySlug, type Quiz } from "@/lib/api-calls"
 import { buildCourseSequence } from "@/lib/course-sequence"
+import { isQuizProgressComplete } from "@/lib/quiz-attempts"
 import { getCurrentUser } from "@/lib/session"
 import { AppBreadcrumbs } from "@/components/breadcrumbs"
 
@@ -29,13 +30,12 @@ export default function ClassroomCourseView() {
   const courseLoadError = courseResponse?.error as any
   const lessons = course?.lessons || []
   const quizzes = course?.quizzes || []
-  const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0 }
+  const stats = course?.stats || { totalLessons: 0, completedLessons: 0, progress: 0, certificateEligible: false }
   const enrollment = course?.enrollment
 
   const isQuizCompleted = (quizId: string) => {
     const quiz = quizzes.find((q: Quiz) => q.id === quizId)
-    const attemptsCount = quiz?.attempts?.length || 0
-    return !!quiz?.attempts?.[0]?.passed || attemptsCount >= 2
+    return isQuizProgressComplete(quiz?.attempts)
   }
 
   const { modules, items: allContent } = buildCourseSequence({
@@ -49,7 +49,10 @@ export default function ClassroomCourseView() {
   const firstIncompleteIndex = allContent.findIndex((item) => !item.completed)
   const maxAccessibleIndex = firstIncompleteIndex === -1 ? allContent.length - 1 : firstIncompleteIndex
   const firstIncomplete = allContent.find((item) => !item.completed)
-  const startLink = firstIncomplete
+  const certificateEligible = !!stats.certificateEligible
+  const startLink = certificateEligible
+    ? `/classroom/course/${slug}/completed`
+    : firstIncomplete
     ? firstIncomplete.type === "lesson"
       ? `/classroom/course/${slug}/lesson/${firstIncomplete.id}`
       : `/classroom/course/${slug}/quiz/${firstIncomplete.id}`
@@ -100,10 +103,10 @@ export default function ClassroomCourseView() {
   const defaultContent = firstLesson ? (
     <div className="text-center py-12 bg-white">
       <p className="text-muted-foreground mb-4">Select a lesson from the sidebar to get started</p>
-      <Button asChild className="bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
+      <Button asChild className="bg-[#01402E] hover:bg-[#01402E]/90 text-white">
         <Link href={startLink}>
           <PlayCircle size={18} className="mr-2" />
-          {firstIncomplete ? "Continue" : "Start First Lesson"}
+          {certificateEligible ? "View certificate" : firstIncomplete ? "Continue" : "Start First Lesson"}
         </Link>
       </Button>
     </div>
@@ -151,17 +154,43 @@ export default function ClassroomCourseView() {
             <CardContent>
               <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                 {modules.map((module) => {
-                  const moduleItems = allContent.filter((item) => item.type === "lesson" && item.moduleId === module.id)
-                  const done = moduleItems.filter((item) => item.completed).length
+                  const moduleItems = allContent.filter((item) => item.moduleId === module.id)
+                  const lessonItems = moduleItems.filter((item) => item.type === "lesson")
+                  const done = lessonItems.filter((item) => item.completed).length
                   return (
                     <div key={module.id} className="space-y-1">
                       <div className="px-2">
                         <p className="text-xs font-semibold uppercase tracking-wide text-[#01402E]">{module.title}</p>
-                        <p className="text-xs text-muted-foreground">{done} of {moduleItems.length} lessons</p>
+                        <p className="text-xs text-muted-foreground">{done} of {lessonItems.length} lessons</p>
                       </div>
                       {moduleItems.map((item) => {
                         const idx = allContent.findIndex((entry) => entry.id === item.id)
                         const isLocked = idx > maxAccessibleIndex
+                        if (item.type === "quiz") {
+                          const content = (
+                            <div
+                              className={`flex items-start gap-3 p-2 rounded-md transition group ${
+                                isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-[#65B32E]/10"
+                              }`}
+                            >
+                              <div className="flex-shrink-0 mt-0.5">
+                                <HelpCircle size={18} className="text-[#65B32E]" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[#65B32E] group-hover:text-[#65B32E]/80 transition line-clamp-2">
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">{item.completed ? "Quiz complete" : "Quiz"}</p>
+                              </div>
+                            </div>
+                          )
+                          if (isLocked) return <div key={item.id}>{content}</div>
+                          return (
+                            <Link key={item.id} href={`/classroom/course/${slug}/quiz/${item.id}`} className="block">
+                              {content}
+                            </Link>
+                          )
+                        }
                         const content = (
                           <div
                             className={`flex items-start gap-3 p-2 rounded-md transition group ${
@@ -201,7 +230,7 @@ export default function ClassroomCourseView() {
                     </div>
                   )
                 })}
-                {allContent.filter((item) => item.type === "quiz").map((item) => {
+                {allContent.filter((item) => item.type === "quiz" && !item.moduleId).map((item) => {
                   const idx = allContent.findIndex((entry) => entry.id === item.id)
                   const isLocked = idx > maxAccessibleIndex
                   const content = (

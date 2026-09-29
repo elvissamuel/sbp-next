@@ -17,59 +17,49 @@ export async function GET(
     // Get the current user from query params if available (for enrollment/progress)
     const userId = request.nextUrl.searchParams.get("userId") || null
 
-    // Since slug is only unique within an organization (composite unique with organizationId),
-    // we need to use findFirst instead of findUnique
-    // Try to find by slug first, then by id
-    let course = await prisma.course.findFirst({
-      where: { slug },
-      include: {
-        modules: {
-          orderBy: { order: "asc" },
-          include: { lessons: { orderBy: { order: "asc" } } },
-        },
-        lessons: {
-          orderBy: { order: "asc" },
-        },
-        quizzes: {
-          orderBy: { createdAt: "asc" },
-          include: {
-            attempts: userId
-              ? {
-                  where: { userId },
-                  orderBy: { attemptedAt: "desc" },
-                  take: 1,
-                }
-              : false,
-          },
+    // Slug is unique per organization, so prefer the course this learner is enrolled in.
+    const courseInclude = {
+      modules: {
+        orderBy: { order: "asc" as const },
+        include: { lessons: { orderBy: { order: "asc" as const } } },
+      },
+      lessons: {
+        orderBy: { order: "asc" as const },
+      },
+      quizzes: {
+        orderBy: { createdAt: "asc" as const },
+        include: {
+          attempts: userId
+            ? {
+                where: { userId },
+                orderBy: { attemptedAt: "desc" as const },
+              }
+            : false as const,
         },
       },
-    })
+    }
 
-    // If not found by slug, try by id
+    let course = userId
+      ? await prisma.course.findFirst({
+          where: {
+            OR: [{ slug }, { id: slug }],
+            enrollments: { some: { userId } },
+          },
+          include: courseInclude,
+        })
+      : null
+
+    if (!course) {
+      course = await prisma.course.findFirst({
+        where: { slug },
+        include: courseInclude,
+      })
+    }
+
     if (!course) {
       course = await prisma.course.findUnique({
         where: { id: slug },
-        include: {
-          modules: {
-            orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } } },
-          },
-          lessons: {
-            orderBy: { order: "asc" },
-          },
-          quizzes: {
-            orderBy: { createdAt: "asc" },
-            include: {
-              attempts: userId
-                ? {
-                    where: { userId },
-                    orderBy: { attemptedAt: "desc" },
-                    take: 1,
-                  }
-                : false,
-            },
-          },
-        },
+        include: courseInclude,
       })
     }
 
@@ -129,6 +119,7 @@ export async function GET(
     let progress = 0
     let completedLessons = 0
     let quizProgress = 0
+    let certificateEligible = false
     
     if (enrollment && userId) {
       // Use the progress calculator to get accurate progress including quizzes
@@ -138,6 +129,16 @@ export async function GET(
       progress = progressData.progress
       completedLessons = progressData.completedLessons
       quizProgress = progressData.quizProgress
+      certificateEligible = progressData.certificateEligible
+      if (progressData.certificateEligible && enrollment && (enrollment.status !== "completed" || !enrollment.completedAt)) {
+        enrollment = await prisma.enrollment.update({
+          where: { id: enrollment.id },
+          data: {
+            status: "completed",
+            completedAt: enrollment.completedAt ?? progressData.earnedAt ?? new Date(),
+          },
+        })
+      }
     } else {
       // No enrollment, use default values
       const totalLessons = filteredLessons.length
@@ -165,6 +166,7 @@ export async function GET(
         completedLessonIds,
         progress,
         quizProgress,
+        certificateEligible,
       },
     })
   } catch (error) {

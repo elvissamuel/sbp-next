@@ -77,11 +77,28 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       title?: string
       description?: string | null
       status?: string
+      afterLessonId?: string | null
     } = {}
 
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description || null
     if (status !== undefined) updateData.status = status
+    if (body.afterLessonId !== undefined) {
+      if (!body.afterLessonId) {
+        updateData.afterLessonId = null
+      } else if (typeof body.afterLessonId !== "string") {
+        return NextResponse.json({ error: "Choose a lesson from this course" }, { status: 400 })
+      } else {
+        const placementLesson = await prisma.lesson.findFirst({
+          where: { id: body.afterLessonId, courseId: existingQuiz.courseId },
+          select: { id: true },
+        })
+        if (!placementLesson) {
+          return NextResponse.json({ error: "Choose a lesson from this course" }, { status: 400 })
+        }
+        updateData.afterLessonId = placementLesson.id
+      }
+    }
 
     // Update quiz
     const quiz = await prisma.quiz.update({

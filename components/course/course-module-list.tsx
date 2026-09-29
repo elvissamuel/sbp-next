@@ -21,6 +21,7 @@ type CourseModuleListProps = {
   onEditLesson: (lessonId: string) => void
   onDeleteLesson: (lesson: { id: string; title: string }) => void
   onLessonStatusChange: (lessonId: string, status: string, title: string) => void
+  onEditModule: (module: CourseModule) => void
   onDeleteModule: (module: CourseModule) => void
 }
 
@@ -30,6 +31,7 @@ export function CourseModuleList({
   onEditLesson,
   onDeleteLesson,
   onLessonStatusChange,
+  onEditModule,
   onDeleteModule,
 }: CourseModuleListProps) {
   if (modules.length === 0) {
@@ -64,6 +66,10 @@ export function CourseModuleList({
                     <Plus size={14} className="mr-2" />
                     Add lesson
                   </Link>
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => onEditModule(module)}>
+                  <Edit size={14} className="mr-2" />
+                  Edit module
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => onDeleteModule(module)}>
                   <Trash2 size={14} className="mr-2" />

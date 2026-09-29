@@ -1,55 +1,86 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { DashboardLayout } from "@/components/layouts/dashboard-layout"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2 } from "lucide-react"
+import { CourseCertificate } from "@/components/certificate/course-certificate"
+import { getCourseCertificate } from "@/lib/api-calls"
+import { getCurrentUser } from "@/lib/session"
+import { Loader2 } from "lucide-react"
 
 export default function CourseCompletedPage() {
   const params = useParams()
   const slug = params.slug as string
+  const [userId, setUserId] = useState<string | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
+
+  useEffect(() => {
+    setUserId(getCurrentUser()?.id || null)
+    setSessionReady(true)
+  }, [])
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["course-certificate", slug, userId],
+    queryFn: () => getCourseCertificate(slug, userId || ""),
+    enabled: sessionReady && !!slug && !!userId,
+  })
+
+  const certificate = data?.data
+  const message = data?.error && "message" in data.error ? data.error.message : null
+  const certificateContent = useMemo(() => {
+    if (!certificate) return null
+    return {
+      organizationName: certificate.organizationName,
+      themePrimaryColor: certificate.themePrimaryColor,
+      themeSecondaryColor: certificate.themeSecondaryColor,
+      courseTitle: certificate.courseTitle,
+      studentName: certificate.studentName,
+      completedAt: new Date(certificate.completedAt),
+      signatures: certificate.signatures,
+    }
+  }, [certificate])
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto bg-white">
-        <Card className="border-[#65B32E]/20 bg-white text-center">
-          <CardContent className="pt-12 pb-8">
-            <CheckCircle2 size={64} className="text-[#65B32E] mx-auto mb-6" />
-            <h1 className="text-4xl font-bold text-[#65B32E] mb-2">Course Completed!</h1>
-            <p className="text-muted-foreground mb-8">Congratulations on finishing Web Development Fundamentals</p>
-
-            <div className="grid md:grid-cols-3 gap-4 mb-8">
-              <div className="p-4 bg-[#65B32E]/10 rounded-lg border border-[#65B32E]/20">
-                <p className="text-sm text-muted-foreground">Total Time</p>
-                <p className="text-2xl font-bold text-[#65B32E]">12 hours 45 min</p>
-              </div>
-              <div className="p-4 bg-[#65B32E]/10 rounded-lg border border-[#65B32E]/20">
-                <p className="text-sm text-muted-foreground">Quiz Score</p>
-                <p className="text-2xl font-bold text-[#65B32E]">92%</p>
-              </div>
-              <div className="p-4 bg-[#65B32E]/10 rounded-lg border border-[#65B32E]/20">
-                <p className="text-sm text-muted-foreground">Lessons</p>
-                <p className="text-2xl font-bold text-[#65B32E]">12/12</p>
-              </div>
+      <div className="mx-auto max-w-5xl space-y-6 bg-white">
+        {!sessionReady || (userId && isLoading) ? (
+          <div className="flex min-h-[400px] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : certificateContent ? (
+          <>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Course completed</h1>
+              <p className="text-muted-foreground">
+                {certificateContent.studentName} has completed {certificateContent.courseTitle}. Download the certificate below.
+              </p>
             </div>
-
-            <p className="text-muted-foreground mb-8">
-              You've successfully completed all lessons and quizzes. Download your certificate to showcase your
-              achievement.
-            </p>
-
-            <div className="flex gap-3">
-              <Button asChild className="flex-1 bg-[#65B32E] hover:bg-[#65B32E]/90 text-white">
-                <Link href="/dashboard">Back to Dashboard</Link>
+            <CourseCertificate
+              certificate={certificateContent}
+              fileName={`${certificateContent.courseTitle.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "") || "course"}-certificate.pdf`}
+            />
+            <Button variant="outline" asChild>
+              <Link href={`/classroom/course/${slug}`}>Back to course</Link>
+            </Button>
+          </>
+        ) : (
+          <Card className="border-border/50 bg-white">
+            <CardContent className="pt-6">
+              <p className="text-muted-foreground">
+                {userId ? message || "Your certificate is available after you complete this course." : "Sign in to view your certificate."}
+              </p>
+              <Button variant="outline" asChild className="mt-4">
+                <Link href={userId ? `/classroom/course/${slug}` : "/dashboard"}>
+                  {userId ? "Back to course" : "Back to dashboard"}
+                </Link>
               </Button>
-              <Button variant="outline" className="flex-1 border-[#65B32E]/30 text-[#65B32E] hover:bg-[#65B32E]/10">
-                Download Certificate
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   )

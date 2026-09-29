@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery, useMutation } from "@tanstack/react-query"
@@ -60,12 +60,32 @@ export default function CreateQuizPage() {
       numQuestions: 5,
       resourceIds: [],
       lessonIds: [],
+      afterLessonId: "",
     },
   })
 
   const selectedResourceIds = form.watch("resourceIds") || []
   const selectedLessonIds = form.watch("lessonIds") || []
   const numQuestions = form.watch("numQuestions") || 5
+  const placementLessons = (course?.modules || [])
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .flatMap((module) =>
+      (module.lessons || [])
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((lesson) => ({
+          id: lesson.id,
+          label: `${module.title}: ${lesson.title}`,
+        })),
+    )
+  const defaultPlacementId = placementLessons[placementLessons.length - 1]?.id || ""
+
+  useEffect(() => {
+    if (defaultPlacementId && !form.getValues("afterLessonId")) {
+      form.setValue("afterLessonId", defaultPlacementId)
+    }
+  }, [defaultPlacementId, form])
 
   // Prepare lesson options for react-select
   const lessonOptions = lessons.map((lesson: Lesson) => ({
@@ -134,6 +154,7 @@ export default function CreateQuizPage() {
       courseId,
       resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
       lessonIds: selectedLessonIds.length > 0 ? selectedLessonIds : undefined,
+      afterLessonId: values.afterLessonId || undefined,
     }
     createQuizMutation.mutate(submitData)
   }
@@ -199,6 +220,40 @@ export default function CreateQuizPage() {
                     <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="afterLessonId">Where students take this quiz</Label>
+                <p className="text-sm text-muted-foreground">
+                  The quiz appears after the lesson you choose. The next lesson still comes after the quiz.
+                </p>
+                {courseLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading lessons...
+                  </div>
+                ) : placementLessons.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Add a lesson first, then you can place this quiz after it.
+                  </p>
+                ) : (
+                  <Select
+                    value={form.watch("afterLessonId") || defaultPlacementId}
+                    onValueChange={(value) => form.setValue("afterLessonId", value)}
+                    disabled={createQuizMutation.isPending}
+                  >
+                    <SelectTrigger id="afterLessonId">
+                      <SelectValue placeholder="Choose a lesson" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {placementLessons.map((lesson) => (
+                        <SelectItem key={lesson.id} value={lesson.id}>
+                          After {lesson.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Quiz Type */}

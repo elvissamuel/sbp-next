@@ -116,9 +116,9 @@ export default function CourseListPage() {
                     </p>
                   </div>
                   <Button asChild size="sm" className="w-full">
-                    <Link href={`/classroom/course/${course.slug}`}>
+                    <Link href={course.status === "completed" ? `/classroom/course/${course.slug}/completed` : `/classroom/course/${course.slug}`}>
                       <PlayCircle size={16} className="mr-2" />
-                      {course.status === "completed" ? "Review" : "Continue"}
+                      {course.status === "completed" ? "View certificate" : "Continue"}
                     </Link>
                   </Button>
                 </CardContent>
