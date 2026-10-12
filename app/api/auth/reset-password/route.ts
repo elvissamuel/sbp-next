@@ -10,6 +10,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 })
+    }
+
     // Find reset record
     const resetRecord = await prisma.passwordReset.findUnique({
       where: { userId },

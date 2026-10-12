@@ -14,17 +14,30 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError("")
 
     try {
-      // TODO: Implement actual forgot password API call
-      console.log("Password reset requested for:", email)
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(typeof data.error === "string" ? data.error : "Could not send the reset email. Please try again.")
+        return
+      }
+
       setSubmitted(true)
     } catch (err) {
-      console.error("Error:", err)
+      console.error("Error requesting password reset:", err)
+      setError("Could not send the reset email. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -39,11 +52,10 @@ export default function ForgotPasswordPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              We've sent a password reset link to <strong>{email}</strong>. Check your email and click the link to reset
-              your password.
+              If an account exists for <strong>{email}</strong>, a password reset link is on its way. The link expires in 1 hour.
             </p>
-            <p className="text-sm text-muted-foreground">If you don't see the email, check your spam folder.</p>
-            <Link href="/signin" className="text-primary hover:underline text-sm">
+            <p className="text-sm text-muted-foreground">If you don&apos;t see the email, check your spam folder.</p>
+            <Link href="/auth/signin" className="text-primary hover:underline text-sm">
               Back to Sign In
             </Link>
           </CardContent>
@@ -61,6 +73,12 @@ export default function ForgotPasswordPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -79,7 +97,7 @@ export default function ForgotPasswordPage() {
           </form>
 
           <div className="mt-4 text-center text-sm">
-            <Link href="/signin" className="text-primary hover:underline">
+            <Link href="/auth/signin" className="text-primary hover:underline">
               Back to Sign In
             </Link>
           </div>

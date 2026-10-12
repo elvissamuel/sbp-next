@@ -16,6 +16,12 @@ export interface VerificationEmailData {
   verificationLink: string
 }
 
+export interface PasswordResetEmailData {
+  email: string
+  name: string | null
+  resetLink: string
+}
+
 /**
  * Send an invitation email to a new team member
  */
@@ -248,5 +254,65 @@ This link will expire in 24 hours. If you didn't create an account, you can safe
     console.error(`[EMAIL ERROR] Error sending verification email to ${data.email}:`, error)
     // Re-throw the error so the calling function can handle it
     throw error
+  }
+}
+
+export async function sendPasswordResetEmail(data: PasswordResetEmailData): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY not set. Email cannot be sent.")
+  }
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev"
+  const response = await resend.emails.send({
+    from: fromEmail,
+    to: data.email,
+    subject: "Reset your password",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reset your password</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f9fafb; padding: 30px; border-radius: 8px;">
+            <h1 style="color: #111827; margin-bottom: 20px;">Reset your password</h1>
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              Hi ${data.name || "there"},
+            </p>
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              We received a request to reset the password for your account. Click the button below to choose a new password:
+            </p>
+            <div style="text-align: center; margin-bottom: 30px;">
+              <a href="${data.resetLink}"
+                 style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
+                Reset Password
+              </a>
+            </div>
+            <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+              Or copy and paste this link into your browser:<br>
+              <a href="${data.resetLink}" style="color: #2563eb; word-break: break-all;">${data.resetLink}</a>
+            </p>
+            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+              This link expires in 1 hour. If you did not request a reset, you can ignore this email.
+            </p>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `
+Hi ${data.name || "there"},
+
+We received a request to reset the password for your account. Open this link to choose a new password:
+
+${data.resetLink}
+
+This link expires in 1 hour. If you did not request a reset, you can ignore this email.
+    `.trim(),
+  })
+
+  if (response.error) {
+    throw new Error(`Failed to send email: ${JSON.stringify(response.error)}`)
   }
 }

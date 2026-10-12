@@ -126,6 +126,7 @@ model User {
   payments      Payment[]
   groupMembers  GroupMember[]
   emailVerification EmailVerification?
+  passwordReset     PasswordReset?
 
   @@index([email])
   // Note: department field kept for backward compatibility but should use OrganizationMember.departmentId
@@ -133,6 +134,18 @@ model User {
 
 // Email Verification
 model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Password reset
+model PasswordReset {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
