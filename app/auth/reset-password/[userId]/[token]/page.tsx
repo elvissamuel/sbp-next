@@ -13,6 +13,7 @@ import Link from "next/link"
 
 export default function ResetPasswordPage() {
   const params = useParams()
+  const userId = params.userId as string
   const token = params.token as string
 
   const [formData, setFormData] = useState({
@@ -31,19 +32,39 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
-      setLoading(false)
       return
     }
 
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters")
+      return
+    }
+
+    setLoading(true)
+
     try {
-      // TODO: Implement actual reset password API call with token
-      console.log("Reset password with token:", token)
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          token,
+          newPassword: formData.password,
+        }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(typeof data.error === "string" ? data.error : "Failed to reset password. Please try again.")
+        return
+      }
+
       setSuccess(true)
     } catch (err) {
+      console.error("Error resetting password:", err)
       setError("Failed to reset password. Please try again.")
     } finally {
       setLoading(false)
@@ -59,9 +80,9 @@ export default function ResetPasswordPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Your password has been successfully reset. You can now sign in with your new password.
+              Your password has been reset. You can now sign in with your new password.
             </p>
-            <Link href="/signin" className="inline-block text-primary hover:underline text-sm">
+            <Link href="/auth/signin" className="inline-block text-primary hover:underline text-sm">
               Go to Sign In
             </Link>
           </CardContent>
@@ -95,6 +116,7 @@ export default function ResetPasswordPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                minLength={8}
               />
             </div>
 
@@ -108,6 +130,7 @@ export default function ResetPasswordPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
+                minLength={8}
               />
             </div>
 
