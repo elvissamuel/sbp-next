@@ -1,14 +1,34 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Cinzel, Cormorant_Garamond, Great_Vibes } from "next/font/google"
 import { Button } from "@/components/ui/button"
 import { Download, Loader2 } from "lucide-react"
 import { certificatePalette, downloadCertificatePdf, drawCertificate, type CertificateContent } from "@/lib/draw-certificate"
 
-const display = Cinzel({ subsets: ["latin"], weight: ["600", "700"] })
-const body = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"] })
-const script = Great_Vibes({ subsets: ["latin"], weight: "400" })
+const FONT_STYLESHEET_ID = "certificate-google-fonts"
+const FONT_STYLESHEET_HREF =
+  "https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&display=swap"
+
+const certificateFonts = {
+  display: "Cinzel",
+  body: '"Cormorant Garamond"',
+  script: '"Great Vibes"',
+}
+
+function ensureCertificateFonts() {
+  const existing = document.getElementById(FONT_STYLESHEET_ID)
+  if (existing) return Promise.resolve()
+
+  return new Promise<void>((resolve, reject) => {
+    const link = document.createElement("link")
+    link.id = FONT_STYLESHEET_ID
+    link.rel = "stylesheet"
+    link.href = FONT_STYLESHEET_HREF
+    link.onload = () => resolve()
+    link.onerror = () => reject(new Error("Could not load certificate fonts"))
+    document.head.appendChild(link)
+  })
+}
 
 export function CourseCertificate({
   certificate,
@@ -25,15 +45,15 @@ export function CourseCertificate({
   useEffect(() => {
     let cancelled = false
     const paint = async () => {
-      const fonts = {
-        display: display.style.fontFamily,
-        body: body.style.fontFamily,
-        script: script.style.fontFamily,
-      }
+      await ensureCertificateFonts()
+      const fonts = certificateFonts
       await Promise.all([
         document.fonts.load(`700 92px ${fonts.display}`),
+        document.fonts.load(`600 36px ${fonts.display}`),
         document.fonts.load(`500 28px ${fonts.body}`),
-        document.fonts.load(`64px ${fonts.script}`),
+        document.fonts.load(`600 28px ${fonts.body}`),
+        document.fonts.load(`700 28px ${fonts.body}`),
+        document.fonts.load(`400 64px ${fonts.script}`),
       ])
       if (cancelled || !canvasRef.current) return
       drawCertificate(canvasRef.current, certificate, fonts)
@@ -58,11 +78,6 @@ export function CourseCertificate({
 
   return (
     <div className="space-y-4">
-      <div className="sr-only" aria-hidden>
-        <span className={display.className}>Certificate</span>
-        <span className={body.className}>Certificate</span>
-        <span className={script.className}>Certificate</span>
-      </div>
       <div className="overflow-hidden rounded-md border shadow-sm" style={{ borderColor: colors.brand, backgroundColor: colors.paper }}>
         <canvas ref={canvasRef} className="h-auto w-full" />
       </div>
